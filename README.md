@@ -1,31 +1,34 @@
 <div align="center">
-  <a href="https://github.com/your-username/anime-legends">
+  <a href="https://github.com/AunMohammad254/anime-legends">
     <picture>
       <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Fire.png">
       <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Fire.png" alt="Anime Legends Logo" width="120" height="120">
     </picture>
   </a>
 
-  <h1 align="center">Anime Legends</h1>
+  <h1>Anime Legends</h1>
 
-  <p align="center">
+  <p>
     <a href="https://git.io/typing-svg">
-      <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=24&pause=1000&color=F73F3F&center=true&vCenter=true&width=500&lines=Epic+HTML5+Canvas+Fighting+Game;Master+Your+Combos;Unleash+Your+Power" alt="Typing SVG" />
+      <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=22&pause=1000&color=F73F3F&center=true&vCenter=true&width=520&lines=Epic+HTML5+Canvas+Fighting+Game;10+Unique+Fighters+%E2%80%94+Choose+Your+Legend;Master+Combos+%7C+Unlock+Power-Ups;Play+Now+%E2%80%94+No+Install+Required" alt="Typing SVG" />
     </a>
   </p>
 
-  <p align="center">
-    <a href="https://github.com/your-username/anime-legends/stargazers">
-      <img src="https://img.shields.io/github/stars/your-username/anime-legends.svg?style=for-the-badge&color=F3E218&logo=github&logoColor=black" alt="Stargazers">
+  <p>
+    <a href="https://github.com/AunMohammad254/anime-legends/stargazers">
+      <img src="https://img.shields.io/github/stars/AunMohammad254/anime-legends.svg?style=for-the-badge&color=F3E218&logo=github&logoColor=black" alt="Stargazers">
     </a>
-    <a href="https://github.com/your-username/anime-legends/network/members">
-      <img src="https://img.shields.io/github/forks/your-username/anime-legends.svg?style=for-the-badge&color=FF9529&logo=github&logoColor=black" alt="Forks">
+    <a href="https://github.com/AunMohammad254/anime-legends/network/members">
+      <img src="https://img.shields.io/github/forks/AunMohammad254/anime-legends.svg?style=for-the-badge&color=FF9529&logo=github&logoColor=black" alt="Forks">
     </a>
-    <a href="https://github.com/your-username/anime-legends/issues">
-      <img src="https://img.shields.io/github/issues/your-username/anime-legends.svg?style=for-the-badge&color=F73F3F&logo=github&logoColor=white" alt="Issues">
+    <a href="https://github.com/AunMohammad254/anime-legends/issues">
+      <img src="https://img.shields.io/github/issues/AunMohammad254/anime-legends.svg?style=for-the-badge&color=F73F3F&logo=github&logoColor=white" alt="Issues">
     </a>
-    <a href="https://github.com/your-username/anime-legends/blob/master/LICENSE">
-      <img src="https://img.shields.io/github/license/your-username/anime-legends.svg?style=for-the-badge&color=4CAF50&logo=open-source-initiative&logoColor=white" alt="MIT License">
+    <a href="https://github.com/AunMohammad254/anime-legends/blob/master/LICENSE">
+      <img src="https://img.shields.io/github/license/AunMohammad254/anime-legends.svg?style=for-the-badge&color=4CAF50&logo=open-source-initiative&logoColor=white" alt="MIT License">
+    </a>
+    <a href="https://anime-legends-by-aun-abbas.netlify.app/">
+      <img src="https://img.shields.io/badge/Live%20Demo-▶%20Play%20Now-blueviolet?style=for-the-badge&logo=netlify&logoColor=white" alt="Live Demo">
     </a>
   </p>
 </div>
@@ -36,124 +39,308 @@
 <details>
   <summary><kbd>📖 Table of Contents</kbd></summary>
   <ol>
-    <li><a href="#about-the-project">About The Project</a></li>
-    <li><a href="#features">Features</a></li>
-    <li><a href="#getting-started">Getting Started</a></li>
-    <li><a href="#usage">Usage</a></li>
-    <li><a href="#contributing">Contributing</a></li>
-    <li><a href="#license">License</a></li>
-    <li><a href="#contact">Contact</a></li>
+    <li><a href="#-about-the-project">About The Project</a></li>
+    <li><a href="#-roster--features">Roster & Features</a></li>
+    <li><a href="#-getting-started">Getting Started</a>
+      <ul>
+        <li><a href="#prerequisites">Prerequisites</a></li>
+        <li><a href="#installation">Installation</a></li>
+      </ul>
+    </li>
+    <li><a href="#-usage--controls">Usage & Controls</a></li>
+    <li><a href="#-project-structure">Project Structure</a></li>
+    <li><a href="#-available-scripts">Available Scripts</a></li>
+    <li><a href="#-deployment">Deployment</a></li>
+    <li><a href="#-troubleshooting">Troubleshooting</a></li>
+    <li><a href="#-contributing">Contributing</a></li>
+    <li><a href="#-license">License</a></li>
+    <li><a href="#-contact">Contact</a></li>
   </ol>
 </details>
 
+---
+
 ## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Magnifying%20Glass%20Tilted%20Right.png" width="25" /> About The Project
 
-**Anime Legends** is a fast-paced, action-packed fighting game built entirely with HTML5 Canvas, JavaScript, and Vite. Experience thrilling combat, stunning visual effects, and fluid animations directly in your browser. 
+**Anime Legends** is a browser-based, two-player fighting game built entirely with **HTML5 Canvas**, **Vanilla JavaScript**, and **Vite**. No plugins, no downloads — just open the browser and fight.
+
+Choose from **10 elemental fighters**, equip **5 unique weapons**, purchase **stat boosts** from the in-game shop, and battle through an AI opponent or a friend on the same keyboard. Every character has a distinct attack, a powerful **Special Move**, and a screen-clearing **Ultimate**.
 
 <div align="center">
-  <video src="images/punch-scene.mp4" autoplay loop muted playsinline width="600"></video>
+  <video src="images/punch-scene.mp4" autoplay loop muted playsinline width="650"></video>
 </div>
+
+### Why Anime Legends?
+
+| ✅ Zero dependencies | ✅ Runs in any modern browser | ✅ 60 FPS on desktop |
+|---|---|---|
+| ✅ 10 playable characters | ✅ Mobile touch controls | ✅ In-game economy & shop |
 
 ---
 
-## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Star-Struck.png" width="25" /> Features
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Star-Struck.png" width="25" /> Roster & Features
 
-*   <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Activities/Sparkles.png" width="20" /> **Dynamic Combat System:** Frame-perfect combat engine with combos, blocks, and special moves.
-*   <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Mobile%20Phone.png" width="20" /> **Mobile Optimized:** Responsive touch controls adapting seamlessly to landscape and portrait modes.
-*   <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/High%20Voltage.png" width="20" /> **VFX & Audio:** High-fidelity particle systems and spatial audio cues.
-*   <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Shield.png" width="20" /> **Zero Dependencies:** Core gameplay logic is written in pure Vanilla JS for ultimate performance.
+### 🥊 Fighter Roster
+
+| Fighter | Element | Strengths | Special | Ultimate |
+|---|---|---|---|---|
+| **Blaze Warrior** *(Free)* | 🔥 Fire | High ATK | Inferno Burst | Solar Flare |
+| **Shadow Ninja** | 🌑 Dark | Max Speed | Shadow Step | Thousand Shadows |
+| **Storm Fighter** | ⚡ Lightning | Balanced | Thunder Crash | Divine Lightning |
+| **Frost Knight** | ❄️ Ice | Max DEF | Ice Spike | Glacial Zero |
+| **Terra Golem** | 🌍 Earth | High DEF | Rock Smash | Earthquake |
+| **Aero Dancer** | 💨 Wind | Max Speed | Gale Blade | Tornado Strike |
+| **Iron Brawler** | 🔩 Metal | Max ATK | Steel Punch | Meteor Crater |
+| **Venom Viper** | ☠️ Poison | Speed/ATK | Toxic Fang | Venomous Cloud |
+| **Aqua Siren** | 🌊 Water | Versatile | Water Whip | Tsunami Surge |
+| **Soul Reaper** | 👻 Spirit | Speed/ATK | Phantom Scythe | Soul Harvest |
+
+### ⚙️ Core Features
+
+- <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Activities/Sparkles.png" width="18" /> **Dynamic Combat Engine** — Frame-accurate hit detection, combo chains, blocking, and special move execution powered by a dedicated `CombatEngine`.
+- <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/High%20Voltage.png" width="18" /> **Particle VFX & Spatial Audio** — A pooled particle system (500 particles, 0 GC pauses) paired with spatial audio cues for impactful combat feedback.
+- <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Shield.png" width="18" /> **In-Game Economy** — Earn coins from battles, then spend them in the Shop on new fighters, weapon skins, and stat-boost items.
+- <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Mobile%20Phone.png" width="18" /> **Mobile-Ready** — Touch controls automatically activate on mobile devices with responsive landscape / portrait layout.
+- <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Bar%20Chart.png" width="18" /> **Performance Optimised** — Object pooling, a spatial grid for O(n) collision detection, and batch rendering keep the game locked at 60 FPS.
 
 ---
 
 ## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Rocket.png" width="25" /> Getting Started
 
-Follow these steps to set up the project locally on your machine.
-
 ### Prerequisites
 
-*   Node.js (v16.0.0 or higher)
-*   npm
+Ensure the following tools are installed before proceeding.
 
-```bash
-npm install npm@latest -g
-```
+| Tool | Minimum Version | Download |
+|---|---|---|
+| **Node.js** | v16.0.0 | [nodejs.org](https://nodejs.org/) |
+| **npm** | v8.0.0 | Bundled with Node.js |
+
+> **Tip:** Verify your versions by running `node -v` and `npm -v` in a terminal.
 
 ### Installation
 
-1. Clone the repository
+1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-username/anime-legends.git
+   git clone https://github.com/AunMohammad254/anime-legends.git
    ```
-2. Navigate to the project directory
+
+2. **Navigate into the project directory**
    ```bash
    cd anime-legends
    ```
-3. Install NPM packages
+
+3. **Install dependencies**
    ```bash
    npm install
    ```
-4. Start the development server
+
+4. **Start the development server**
    ```bash
    npm run dev
    ```
 
+5. Open the URL printed by Vite (usually `http://localhost:5173`) in your browser. The game loads instantly — no build step needed for development.
+
 ---
 
-## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Joystick.png" width="25" /> Usage
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Joystick.png" width="25" /> Usage & Controls
 
-Anime Legends is designed to be played instantly. Once the server is running, navigate to the local port Vite provides.
+### Screenshots
 
 <div align="center">
-  <h3>Screenshots</h3>
   <img src="images/Landing%20Page.png" alt="Landing Page" width="600" />
   <br/><br/>
   <img src="images/Character%20Choosing%20Page.png" alt="Character Selection" width="600" />
   <br/><br/>
-  <img src="images/Actual%20Game%20Page.png" alt="Actual Game Page" width="600" />
+  <img src="images/Actual%20Game%20Page.png" alt="In-Game HUD" width="600" />
   <br/><br/>
   <img src="images/Fight%20Scene.png" alt="Fight Scene" width="600" />
 </div>
 
-*   **Player 1 Controls:** `W` `A` `S` `D` to move, `J` `K` `L` to attack/block.
-*   **Player 2 Controls:** `Arrow Keys` to move, `Numpad 1` `2` `3` to attack/block.
+<br/>
+
+### Keyboard Controls
+
+| Action | Player 1 | Player 2 |
+|---|---|---|
+| Move Left / Right | `A` / `D` | `←` / `→` |
+| Jump | `W` | `↑` |
+| Crouch | `S` | `↓` |
+| Light Attack | `J` | `Numpad 1` |
+| Heavy Attack | `K` | `Numpad 2` |
+| Block | `L` | `Numpad 3` |
+
+> **Mobile:** On-screen touch buttons appear automatically when a touch device is detected.
+
+### Game Flow
+
+```
+Title Screen → Character Select → VS Screen → Battle → Results → (Rematch / Return)
+```
+
+1. **Character Select** — Each player picks a fighter. Locked characters can be purchased from the shop.
+2. **Battle** — First to deplete the opponent's HP wins the round.
+3. **Shop** — Spend earned coins between matches on fighters, weapons, weapon skins, and stat boosts.
+
+---
+
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Card%20Index%20Dividers.png" width="25" /> Project Structure
+
+```
+anime-legends/
+├── src/                          # Modular source code
+│   ├── core/                     # Core engine systems
+│   │   ├── Physics.js            # Collision detection & physics
+│   │   ├── Renderer.js           # Batch rendering pipeline
+│   │   └── SpatialGrid.js        # O(n) spatial partitioning
+│   ├── entities/                 # Game entity classes
+│   │   ├── Character.js          # Character entity & stats
+│   │   └── Projectile.js         # Projectile lifecycle
+│   ├── audio/
+│   │   └── AudioManager.js       # Spatial audio management
+│   ├── vfx/
+│   │   └── ParticleSystem.js     # Pooled particle effects
+│   └── utils/
+│       ├── Config.js             # Centralised configuration
+│       ├── EventBus.js           # Event-driven messaging
+│       ├── ObjectPool.js         # GC-friendly object pooling
+│       └── PerformanceMonitor.js # Real-time FPS & memory tracking
+├── tests/                        # Vitest unit tests
+│   ├── Physics.test.js
+│   ├── Character.test.js
+│   ├── Projectile.test.js
+│   ├── EventBus.test.js
+│   └── State.test.js
+├── images/                       # Screenshots & media
+├── engine.js                     # Main game loop & orchestration
+├── combatengine.js               # Combat resolution logic
+├── ui.js                         # UI rendering & screen management
+├── state.js                      # Global game state
+├── constants.js                  # Characters, weapons & game data
+├── index.html                    # Entry point (title screen)
+├── game.html                     # In-game screen
+├── vite.config.js                # Vite build configuration
+└── vitest.config.js              # Test configuration
+```
+
+---
+
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Scroll.png" width="25" /> Available Scripts
+
+Run all commands from the project root with `npm run <script>`.
+
+| Script | Command | Description |
+|---|---|---|
+| `dev` | `npm run dev` | Start the Vite development server with hot-reload |
+| `build` | `npm run build` | Produce an optimised production bundle in `dist/` |
+| `preview` | `npm run preview` | Serve the production build locally for verification |
+| `test` | `npm test` | Run the full Vitest unit test suite |
+| `test:ui` | `npm run test:ui` | Open the interactive Vitest UI dashboard |
+| `test:coverage` | `npm run test:coverage` | Generate an HTML test coverage report |
+
+---
+
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/Globe%20with%20Meridians.png" width="25" /> Deployment
+
+### Deploy to Netlify (Recommended)
+
+1. Push your repository to GitHub.
+2. Log in to [netlify.com](https://netlify.com) → **Add new site** → **Import from Git**.
+3. Set the build settings:
+
+   | Setting | Value |
+   |---|---|
+   | Build command | `npm run build` |
+   | Publish directory | `dist` |
+
+4. Click **Deploy**. Netlify will assign a live URL automatically.
+
+> 🔗 **Live Demo:** [https://anime-legends-by-aun-abbas.netlify.app/](https://anime-legends-by-aun-abbas.netlify.app/)
+
+### Deploy to GitHub Pages
+
+```bash
+# Build the project
+npm run build
+
+# Deploy the dist/ folder to the gh-pages branch
+npx gh-pages -d dist
+```
+
+### Deploy to Vercel
+
+```bash
+# Install the Vercel CLI
+npm install -g vercel
+
+# Deploy from the project root
+vercel --prod
+```
+
+---
+
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Wrench.png" width="25" /> Troubleshooting
+
+| Problem | Likely Cause | Solution |
+|---|---|---|
+| `npm install` fails | Node.js version too old | Upgrade to Node.js v16+ |
+| Blank screen on load | Browser blocks ES Modules from `file://` | Always use `npm run dev` instead of opening the HTML file directly |
+| No audio | Browser autoplay policy | Click anywhere on the page to enable audio |
+| Low FPS on mobile | Hardware limitation | Reduce particle effects in `src/utils/Config.js` |
+| Port already in use | Another server is running | Run `npm run dev -- --port 3000` to use a different port |
+
+> Still stuck? [Open an issue](https://github.com/AunMohammad254/anime-legends/issues) with your browser version, OS, and a description of the problem.
 
 ---
 
 ## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Hand%20gestures/Handshake.png" width="25" /> Contributing
 
-Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
+Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions are **greatly appreciated**.
 
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+### Steps
 
-### <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/People%20Hugging.png" width="25" /> Contributors Wall
+1. **Fork** the repository
+2. **Create** a feature branch
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+3. **Commit** your changes with a descriptive message
+   ```bash
+   git commit -m "feat: add new character — Blaze Warrior Mk II"
+   ```
+4. **Push** to your fork
+   ```bash
+   git push origin feature/your-feature-name
+   ```
+5. **Open a Pull Request** against the `main` branch
 
-<a href="https://github.com/your-username/anime-legends/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=your-username/anime-legends" alt="Contributors" />
+### Guidelines
+
+- Follow the existing code style (ESLint is configured — run `npx eslint .` before committing).
+- Write or update unit tests in `tests/` for any new logic.
+- Keep pull requests focused; one feature or fix per PR.
+
+### <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/People%20Hugging.png" width="20" /> Contributors
+
+<a href="https://github.com/AunMohammad254/anime-legends/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=AunMohammad254/anime-legends" alt="Contributors" />
 </a>
 
 ---
 
 ## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Scroll.png" width="25" /> License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for the full text.
 
 ---
 
 ## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Postbox.png" width="25" /> Contact
 
-Your Name - [@your_twitter](https://twitter.com/your_twitter) - email@example.com
+**Aun Abbas** — [@AunMohammad254](https://twitter.com/AunMohammad254)
 
-Project Link: [https://github.com/AunMohammad254/anime-legends](https://github.com/AunMohammad254/anime-legends)
-
-Live Demo:
-
-<a href="https://anime-legends-by-aun-abbas.netlify.app/">https://anime-legends-by-aun-abbas.netlify.app/</a>
-
----
+- 📁 Repository: [github.com/AunMohammad254/anime-legends](https://github.com/AunMohammad254/anime-legends)
+- 🌐 Live Demo: [anime-legends-by-aun-abbas.netlify.app](https://anime-legends-by-aun-abbas.netlify.app/)
 
 <div align="center">
   <a href="https://github.com/AunMohammad254">
