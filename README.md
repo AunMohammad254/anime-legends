@@ -51,10 +51,7 @@
 **Anime Legends** is a fast-paced, action-packed fighting game built entirely with HTML5 Canvas, JavaScript, and Vite. Experience thrilling combat, stunning visual effects, and fluid animations directly in your browser. 
 
 <div align="center">
-  <!-- Note: Replace the below src with an actual optimized gameplay GIF hosted on GitHub or an image CDN -->
-  <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Activities/Video%20Game.png" alt="Gameplay Demo Placeholder" width="400" />
-  <br/>
-  <p><em>(Gameplay Demo: Replace with gameplay.gif under 5MB)</em></p>
+  <video src="images/punch-scene.mp4" autoplay loop muted playsinline width="600"></video>
 </div>
 
 ---
@@ -107,8 +104,14 @@ npm install npm@latest -g
 Anime Legends is designed to be played instantly. Once the server is running, navigate to the local port Vite provides.
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Camera.png" alt="Screenshot Placeholder" width="200" />
-  <p><em>(Add animated screenshots showcasing core functionality here)</em></p>
+  <h3>Screenshots</h3>
+  <img src="images/Landing%20Page.png" alt="Landing Page" width="600" />
+  <br/><br/>
+  <img src="images/Character%20Choosing%20Page.png" alt="Character Selection" width="600" />
+  <br/><br/>
+  <img src="images/Actual%20Game%20Page.png" alt="Actual Game Page" width="600" />
+  <br/><br/>
+  <img src="images/Fight%20Scene.png" alt="Fight Scene" width="600" />
 </div>
 
 *   **Player 1 Controls:** `W` `A` `S` `D` to move, `J` `K` `L` to attack/block.
