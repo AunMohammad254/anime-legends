@@ -1,0 +1,24 @@
+export const Config = {
+  PHYSICS: {
+    GRAVITY: 0.5,
+    FRICTION: 0.85,
+    JUMP_FORCE: -12,
+    MOVE_SPEED: 5,
+  },
+  COMBAT: {
+    BASE_DAMAGE: 10,
+    COMBO_MULTIPLIER: 1.2,
+    STUN_DURATION: 300,
+    BLOCK_REDUCTION: 0.5,
+  },
+  ARENA: {
+    WIDTH: 1200,
+    HEIGHT: 600,
+    FLOOR_Y: 520,
+  },
+  PERFORMANCE: {
+    TARGET_FPS: 60,
+    MAX_PARTICLES: 500,
+    PARTICLE_POOL_SIZE: 500,
+  },
+};

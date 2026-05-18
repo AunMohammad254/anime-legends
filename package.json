@@ -1,0 +1,24 @@
+{
+  "name": "anime-legends",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@vitest/coverage-v8": "^1.6.1",
+    "@vitest/ui": "^1.6.1",
+    "eslint": "^10.4.0",
+    "jsdom": "^23.2.0",
+    "prettier": "^3.8.3",
+    "terser": "^5.47.1",
+    "vite": "^5.0.0",
+    "vitest": "^1.6.1"
+  }
+}
