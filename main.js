@@ -4,9 +4,9 @@
  * Orchestrates State, UI, and Engine modules.
  */
 
-import { state } from "./State.js";
-import { ui } from "./UI.js";
-import { engine } from "./Engine.js";
+import { state } from "./state.js";
+import { ui } from "./ui.js";
+import { engine } from "./engine.js";
 
 class GameApp {
   constructor() {

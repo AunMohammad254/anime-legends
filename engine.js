@@ -3,9 +3,9 @@
  * Core game loop, physics, and character logic.
  */
 
-import { state } from "./State.js";
-import { WEAPONS, STAT_BOOSTS, WEAPON_SKINS } from "./Constants.js";
-import { CombatState, resolveCollision } from "./CombatEngine.js";
+import { state } from "./state.js";
+import { WEAPONS, STAT_BOOSTS, WEAPON_SKINS } from "./constants.js";
+import { CombatState, resolveCollision } from "./combatengine.js";
 import { AudioManager } from "./src/audio/AudioManager.js";
 import { ParticleSystem } from "./src/vfx/ParticleSystem.js";
 

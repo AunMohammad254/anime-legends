@@ -3,9 +3,9 @@
  * Logic for screens, modals, and shop interactions.
  */
 
-import { SCREENS, CHARACTERS, WEAPON_SKINS, STAT_BOOSTS } from "./Constants.js";
-import { state } from "./State.js";
-import { engine } from "./Engine.js";
+import { SCREENS, CHARACTERS, WEAPON_SKINS, STAT_BOOSTS } from "./constants.js";
+import { state } from "./state.js";
+import { engine } from "./engine.js";
 
 class UI {
   constructor() {
