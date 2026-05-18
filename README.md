@@ -1,9 +1,6 @@
 <div align="center">
   <a href="https://github.com/AunMohammad254/anime-legends">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Fire.png">
-      <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Fire.png" alt="Anime Legends Logo" width="120" height="120">
-    </picture>
+    <img src="images/logo.png" alt="Anime Legends Logo" width="150" height="150" style="border-radius: 20px;">
   </a>
 
   <h1>Anime Legends</h1>
