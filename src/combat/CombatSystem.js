@@ -1,150 +1,19 @@
 /**
- * CombatEngine.js
- * Advanced fighting game combat layer for Anime Legends.
- * Implements: Frame Data State Machine, Input Buffer, Hitbox/Hurtbox, Hitstop.
- * Drop-in integration: import and delegate from Engine.js
+ * CombatSystem.js
+ * Core combat mechanics, state machine, and collision resolution.
  */
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CONSTANTS
-// ─────────────────────────────────────────────────────────────────────────────
+import { FighterState, AttackLevel, MOVE_DATA } from "./MoveRegistry.js";
+import { InputBuffer } from "./ComboDetector.js";
 
-export const FighterState = Object.freeze({
-  IDLE: "IDLE",
-  WALK: "WALK",
-  DASH: "DASH",
-  STARTUP: "STARTUP", // Pre-active frames of an attack
-  ACTIVE: "ACTIVE", // Hitbox is live
-  RECOVERY: "RECOVERY", // Post-active — vulnerable, can cancel into specials
-  HITSTUN: "HITSTUN", // Taking a hit
-  BLOCKSTUN: "BLOCKSTUN", // Blocked a hit
-  JUGGLED: "JUGGLED", // Airborne after a launcher
-  KNOCKDOWN: "KNOCKDOWN", // Knocked to the ground
-});
-
-export const AttackLevel = Object.freeze({
-  HIGH: "HIGH", // Blocked by standing block; crouching goes under
-  MID: "MID", // Blocked by both standing and crouching block
-  LOW: "LOW", // Only blocked by crouching block
-});
-
-/** Frame Data catalog — all timings in frames at 60fps (1 frame = ~16.67ms) */
-export const MOVE_DATA = {
-  attack_light: {
-    startupFrames: 5,
-    activeFrames: 3,
-    recoveryFrames: 8,
-    damage: 8,
-    knockback: 5,
-    hitstunFrames: 12,
-    blockstunFrames: 6,
-    hitLevel: AttackLevel.MID,
-    cancelable: true, // Can cancel recovery into specials
-    hitstop: 4, // Frames both fighters freeze on hit
-    hitbox: { xOffset: 70, yOffset: 60, width: 80, height: 60 },
-    hurtbox: { xOffset: 10, yOffset: 20, width: 60, height: 120 },
-  },
-  attack_heavy: {
-    startupFrames: 12,
-    activeFrames: 5,
-    recoveryFrames: 20,
-    damage: 22,
-    knockback: 14,
-    hitstunFrames: 24,
-    blockstunFrames: 14,
-    hitLevel: AttackLevel.HIGH,
-    cancelable: false,
-    hitstop: 10,
-    hitbox: { xOffset: 80, yOffset: 30, width: 110, height: 90 },
-    hurtbox: { xOffset: 10, yOffset: 20, width: 60, height: 120 },
-  },
-  special: {
-    startupFrames: 8,
-    activeFrames: 4,
-    recoveryFrames: 18,
-    damage: 28,
-    knockback: 18,
-    hitstunFrames: 30,
-    blockstunFrames: 16,
-    hitLevel: AttackLevel.MID,
-    cancelable: false,
-    hitstop: 8,
-    isLauncher: true, // Sends opponent into JUGGLED state
-    hitbox: { xOffset: 60, yOffset: 40, width: 140, height: 80 },
-    hurtbox: { xOffset: 10, yOffset: 20, width: 60, height: 120 },
-  },
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// class InputBuffer
-// Stores the last N frames of inputs. If an attack input is pressed during
-// recovery, it is queued and executed on the first available frame.
-// ─────────────────────────────────────────────────────────────────────────────
-
-export class InputBuffer {
-  /**
-   * @param {number} bufferFrames - How many frames to hold a buffered input (default 5)
-   */
-  constructor(bufferFrames = 5) {
-    this.bufferFrames = bufferFrames;
-    /** @type {Array<{action: string, framesLeft: number}>} */
-    this.queue = [];
-  }
-
-  /**
-   * Push a new input action into the buffer.
-   * @param {string} action - e.g. 'attack_light', 'attack_heavy', 'special'
-   */
-  push(action) {
-    // Deduplicate: don't stack the same action
-    if (!this.queue.find((e) => e.action === action)) {
-      this.queue.push({ action, framesLeft: this.bufferFrames });
-    }
-  }
-
-  /**
-   * Called every frame. Decrements buffer timers and evicts expired inputs.
-   */
-  tick() {
-    this.queue = this.queue.filter((e) => --e.framesLeft > 0);
-  }
-
-  /**
-   * Consume and return the highest-priority buffered action, or null.
-   * Priority order: special > attack_heavy > attack_light
-   * @returns {string|null}
-   */
-  consume() {
-    const priority = ["special", "attack_heavy", "attack_light"];
-    for (const action of priority) {
-      const idx = this.queue.findIndex((e) => e.action === action);
-      if (idx !== -1) {
-        this.queue.splice(idx, 1);
-        return action;
-      }
-    }
-    return null;
-  }
-
-  /** Check if there is any buffered input without consuming it. */
-  hasPending() {
-    return this.queue.length > 0;
-  }
-
-  clear() {
-    this.queue = [];
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// class CombatState
-// Frame-data driven state machine for a single fighter.
-// ─────────────────────────────────────────────────────────────────────────────
-
+/**
+ * class CombatState
+ * Frame-data driven state machine for a single fighter.
+ */
 export class CombatState {
   /**
-   * @param {object} fighter - The Fighter instance from Engine.js
-   * @param {Engine} engine  - The Engine instance
+   * @param {object} fighter - The Fighter instance
+   * @param {object} engine  - The Engine instance
    */
   constructor(fighter, engine) {
     this.fighter = fighter;
@@ -384,18 +253,14 @@ export class CombatState {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// resolveCollision — drop this into Engine.js attack() resolution phase
-// ─────────────────────────────────────────────────────────────────────────────
-
 /**
  * Resolves a hit between attacker and defender using full frame data.
  * Applies damage, knockback, hitstun/blockstun, hitstop, and screen shake.
  *
- * @param {Fighter}     attacker  - The Fighter instance throwing the attack
- * @param {Fighter}     defender  - The Fighter instance receiving it
- * @param {string}      moveId    - Key into MOVE_DATA (e.g. 'attack_light')
- * @param {Engine}      engine    - The Engine instance (for shake/particles)
+ * @param {object} attacker  - The Fighter instance throwing the attack
+ * @param {object} defender  - The Fighter instance receiving it
+ * @param {string} moveId    - Key into MOVE_DATA (e.g. 'attack_light')
+ * @param {object} engine    - The Engine instance (for shake/particles)
  * @returns {'hit'|'blocked'|'juggled'|'launched'|'whiff'} result string
  */
 export function resolveCollision(attacker, defender, moveId, engine) {

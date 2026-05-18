@@ -188,6 +188,10 @@ Title Screen → Character Select → VS Screen → Battle → Results → (Rema
 ```
 anime-legends/
 ├── src/                          # Modular source code
+│   ├── combat/                   # Combat resolution and state logic
+│   │   ├── CombatSystem.js
+│   │   ├── ComboDetector.js
+│   │   └── MoveRegistry.js
 │   ├── core/                     # Core engine systems
 │   │   ├── Physics.js            # Collision detection & physics
 │   │   ├── Renderer.js           # Batch rendering pipeline
@@ -209,10 +213,10 @@ anime-legends/
 │   ├── Character.test.js
 │   ├── Projectile.test.js
 │   ├── EventBus.test.js
+│   ├── Combat.test.js
 │   └── State.test.js
-├── images/                       # Screenshots & media
+├── media/                        # Screenshots & media
 ├── engine.js                     # Main game loop & orchestration
-├── combatengine.js               # Combat resolution logic
 ├── ui.js                         # UI rendering & screen management
 ├── state.js                      # Global game state
 ├── constants.js                  # Characters, weapons & game data

@@ -15,46 +15,47 @@ class GameApp {
 
   init() {
     // Detect mobile to apply performance optimizations
-    const isTouchDevice =
-      "ontouchstart" in window || navigator.maxTouchPoints > 0;
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     if (isTouchDevice) {
       document.body.classList.add("mobile-optimized");
     }
 
-    // Initialize State
-
-    // Listen for state changes
+    // --- State Synchronization ---
+    
+    // Update UI when shards change
     state.on("shardsChanged", (shards) => {
-      ui.updateShards(shards);
+      ui.manager.updateShards(shards);
     });
 
+    // Refresh character grid when a new character is unlocked
     state.on("characterUnlocked", () => {
-      ui.renderCharSelect();
+      ui.manager.renderCharSelect();
     });
 
-    // Initialize Engine
+    // --- System Initialization ---
+
+    // Initialize Engine (Inputs, Arena, VFX)
     engine.init();
 
-    // Initialize UI
+    // Initialize UI (Screen Manager, HUD, Global Bindings)
     ui.init();
+
+    // Link Engine to UI for HUD updates (already handled via engine.onHUDUpdate callbacks in UIManager)
 
     this.setupGlobalHandlers();
   }
 
   setupGlobalHandlers() {
-    window.addEventListener("resize", () => {
-      // UI already handles window resize for particles
-    });
-
-    // Make modules accessible for debugging
+    // Make modules accessible for debugging and legacy global triggers
     window.gameDebug = {
       state,
-      ui,
+      ui: ui.manager,
       engine,
       addShards: (n) => state.addShards(n),
-      unlockAll: () =>
-        ["shadow", "storm"].forEach((c) => state.unlockCharacter(c)),
+      unlockAll: () => ["shadow", "storm"].forEach((c) => state.unlockCharacter(c)),
     };
+
+    console.log("Anime Legends: Systems Modularized and Initialized.");
   }
 }
 

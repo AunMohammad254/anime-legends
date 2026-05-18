@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { state } from "../State.js";
+import { state } from "../state.js";
 
 describe("State", () => {
   beforeEach(() => {
