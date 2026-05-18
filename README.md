@@ -62,9 +62,9 @@
 
 ## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Magnifying%20Glass%20Tilted%20Right.png" width="25" /> About The Project
 
-**Anime Legends** is a browser-based, two-player fighting game built entirely with **HTML5 Canvas**, **Vanilla JavaScript**, and **Vite**. No plugins, no downloads — just open the browser and fight.
+**Anime Legends** is a browser-based, fast-paced fighting game built entirely with **HTML5 Canvas**, **Vanilla JavaScript**, and **Vite**. No plugins, no downloads — just open the browser and fight.
 
-Choose from **10 elemental fighters**, equip **5 unique weapons**, purchase **stat boosts** from the in-game shop, and battle through an AI opponent or a friend on the same keyboard. Every character has a distinct attack, a powerful **Special Move**, and a screen-clearing **Ultimate**.
+Choose from **10 elemental fighters**, equip **5 unique weapons**, purchase **stat boosts** from the in-game shop, and battle against a highly adaptive AI, survive escalating waves, and challenge formidable bosses. Every character has a distinct attack, a powerful **Special Move**, and a screen-clearing **Ultimate**.
 
 <div align="center">
   <video src="images/punch-scene.mp4" autoplay loop muted playsinline width="650"></video>
@@ -162,14 +162,15 @@ Ensure the following tools are installed before proceeding.
 
 ### Keyboard Controls
 
-| Action | Player 1 | Player 2 |
+| Action | Input / Key | Details |
 |---|---|---|
-| Move Left / Right | `A` / `D` | `←` / `→` |
-| Jump | `W` | `↑` |
-| Crouch | `S` | `↓` |
-| Light Attack | `J` | `Numpad 1` |
-| Heavy Attack | `K` | `Numpad 2` |
-| Block | `L` | `Numpad 3` |
+| **Move / Jump** | `Arrow Keys` | Standard character movement & jumping |
+| **Light Attack** | `Z` | Quick, low-damage strike |
+| **Heavy Attack** | `X` | Slower, high-damage strike |
+| **Block** | `C` | Mitigate incoming combat damage (absorb 70% damage) |
+| **Special Move** | `V` | Execute elemental special ability (Requires 1 Power Orb) |
+| **Ultimate** | `Hold V` | Screen-clearing attack (Requires 3 Power Orbs) |
+| **Dash** | `Space` | Quick directional evade (invulnerable frames) |
 
 > **Mobile:** On-screen touch buttons appear automatically when a touch device is detected.
 
@@ -179,9 +180,9 @@ Ensure the following tools are installed before proceeding.
 Title Screen → Character Select → VS Screen → Battle → Results → (Rematch / Return)
 ```
 
-1. **Character Select** — Each player picks a fighter. Locked characters can be purchased from the shop.
-2. **Battle** — First to deplete the opponent's HP wins the round.
-3. **Shop** — Spend earned coins between matches on fighters, weapons, weapon skins, and stat boosts.
+1. **Character Select** — Select your champion. Locked characters can be purchased from the Shop using Spirit Shards.
+2. **Battle** — Defeat the AI opponent (or survive waves / defeat the final boss) to win the match.
+3. **Shop** — Spend earned Spirit Shards (💎) on new fighters, weapon skins, and power boosts.
 
 ---
 
