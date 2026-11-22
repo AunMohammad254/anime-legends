@@ -1,599 +1,205 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover"
-    />
-    <title>ANIME LEGENDS | Next-Gen Combat</title>
-    <link rel="icon" type="image/png" href="images/logo.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="index.css" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0a121b" />
+    <meta name="description" content="Play Anime Legends. Pick an elemental fighter, challenge the CPU, and earn Spirit Shards in the arena." />
+    <title>Play Anime Legends</title>
+    <link rel="icon" type="image/png" href="./media/arena-icon.png" />
+    <link rel="stylesheet" href="./index.css" />
   </head>
-  <body style="position: relative">
-    <!-- PORTRAIT ROTATION PROMPT -->
-    <div id="rotate-prompt">
-      <div class="rotate-icon"></div>
-      <h2>Please Rotate Your Device</h2>
-      <p>
-        Anime Legends is best experienced in landscape mode for full combat
-        immersion.
-      </p>
-      <button
-        class="btn secondary"
-        onclick="dismissRotatePrompt()"
-        style="margin-top: 1rem"
-      >
-        Continue Anyway
-      </button>
-    </div>
-
-    <!-- FULLSCREEN TOGGLE -->
-    <button
-      id="fullscreen-btn"
-      onclick="toggleFullscreen()"
-      title="Toggle Fullscreen"
-    >
-      ⛶
-    </button>
-
-    <!-- RESPONSIVE GAME WRAPPER -->
-    <div id="game-wrapper">
-      <!-- TITLE -->
+  <body>
+    <main id="game-wrapper">
       <div id="screen-title" class="screen active">
-        <canvas id="particle-canvas"></canvas>
         <div class="title-content">
-          <div class="glitch-wrapper">
-            <h1 class="glitch-title">ANIME LEGENDS</h1>
-          </div>
-          <p class="subheading">Next-Generation Anime Combat</p>
-          <div class="mb-2 text-display text-cyan shard-display">
-            💎 SPIRIT SHARDS: <span id="shard-count">0</span>
-          </div>
-          <div class="menu-btns">
-            <button class="btn" onclick="startGame()">▶ Play</button>
-            <button class="btn secondary" onclick="showScreen('shop')">
-              💎 Spirit Shop
-            </button>
-            <button
-              class="btn secondary"
-              onclick="showScreen('character-select')"
-            >
-              ⚔ Character Select
-            </button>
-            <button class="btn secondary" onclick="showModal('how-to-play')">
-              ? How To Play
-            </button>
-            <button class="btn secondary" onclick="showScreen('leaderboard')">
-              🏆 Leaderboard
-            </button>
-          </div>
-        </div>
-        <button class="audio-toggle" onclick="toggleAudio()">🔊</button>
-      </div>
-
-      <!-- TOASTS -->
-      <div class="toast-container" id="toast-container"></div>
-
-      <!-- SHOP -->
-      <div id="screen-shop" class="screen">
-        <h2
-          style="
-            font-family: var(--font-display);
-            font-size: 3rem;
-            margin-bottom: 1rem;
-          "
-        >
-          SPIRIT SHOP
-        </h2>
-        <p style="margin-bottom: 2rem; color: var(--cyan)">
-          Spend Shards to unlock legendary warriors.
-        </p>
-        <div class="char-grid" id="shop-grid">
-          <!-- Shop items will be injected here -->
-        </div>
-        <button
-          class="btn secondary"
-          style="margin-top: 2rem"
-          onclick="showScreen('title')"
-        >
-          ← BACK
-        </button>
-      </div>
-
-      <!-- CHAR SELECT -->
-      <div id="screen-character-select" class="screen">
-        <h2 class="char-select-title">CHOOSE YOUR FIGHTER</h2>
-
-        <div class="char-select-layout">
-          <!-- Left Side: Characters & Details -->
-          <div class="char-select-left-panel">
-            <!-- Character Grid (Smaller cards) -->
-            <div class="char-grid char-select-grid" id="char-grid"></div>
-
-            <!-- Character Details Box -->
-            <div class="char-details-panel" id="char-details-box">
-              <div style="color: #aaa">Select a fighter to view details</div>
+          <img class="title-cover" src="./media/arena-cover.webp" alt="" />
+          <div class="title-menu">
+            <h1>Anime<br /><em>Legends</em></h1>
+            <p class="shard-display"><span aria-hidden="true">◆</span> <b id="shard-count">0</b> Spirit Shards</p>
+            <div class="menu-btns">
+              <button class="btn" onclick="startGame()">Choose fighter <span aria-hidden="true">→</span></button>
+              <button class="btn secondary" onclick="showScreen('shop')">Spirit shop</button>
+              <button class="btn secondary" onclick="showScreen('leaderboard')">Leaderboard</button>
+              <button class="btn secondary" onclick="showModal('how-to-play')">How to play</button>
+            </div>
+            <div class="display-actions">
+              <button class="text-button audio-toggle" aria-pressed="true" onclick="toggleAudio()">Sound on</button>
+              <button class="text-button" id="fullscreen-btn" onclick="toggleFullscreen()">Fullscreen</button>
+              <a class="text-button" href="./index.html">Home</a>
             </div>
           </div>
+        </div>
+      </div>
 
-          <!-- Right Side: Match Options -->
-          <div class="char-select-right-panel">
-            <div class="cpu-panel">
-              <span class="cpu-difficulty-label">CPU DIFFICULTY</span>
-              <div class="difficulty-select">
-                <button class="diff-btn" onclick="setDifficulty('easy')">
-                  Easy
-                </button>
-                <button
-                  class="diff-btn active"
-                  onclick="setDifficulty('normal')"
-                >
-                  Normal
-                </button>
-                <button class="diff-btn" onclick="setDifficulty('hard')">
-                  Hard
-                </button>
-                <button class="diff-btn" onclick="setDifficulty('expert')">
-                  Expert
-                </button>
+      <div class="toast-container" id="toast-container" role="status" aria-live="polite"></div>
+
+      <div id="screen-shop" class="screen menu-screen">
+        <div class="menu-shell">
+          <header class="menu-heading">
+            <div><h2>Spirit shop</h2><p><span class="shard-glyph">◆</span> <b data-balance>0</b> Spirit Shards</p></div>
+            <button class="text-button" onclick="showScreen('title')">Main menu</button>
+          </header>
+          <nav class="shop-tabs" aria-label="Shop categories">
+            <button class="diff-btn" data-tab="chars" onclick="setShopTab('chars')">Fighters</button>
+            <button class="diff-btn" data-tab="skins" onclick="setShopTab('skins')">Weapon skins</button>
+            <button class="diff-btn" data-tab="boosts" onclick="setShopTab('boosts')">Boosts</button>
+          </nav>
+          <p id="shop-note" class="shop-note"></p>
+          <div class="char-grid" id="shop-grid"></div>
+          <button class="btn shop-return" onclick="showScreen('character-select')">Choose fighter <span aria-hidden="true">→</span></button>
+        </div>
+      </div>
+
+      <div id="screen-character-select" class="screen menu-screen">
+        <div class="menu-shell">
+          <header class="menu-heading">
+            <h2>Choose your fighter</h2>
+            <button class="text-button" onclick="showScreen('title')">Main menu</button>
+          </header>
+          <div class="char-select-layout">
+            <div class="char-select-left-panel">
+              <div class="char-grid char-select-grid" id="char-grid" aria-label="Fighters"></div>
+              <div class="char-details-panel" id="char-details-box"></div>
+            </div>
+            <div class="char-select-right-panel">
+              <div class="cpu-panel">
+                <h3>CPU difficulty</h3>
+                <div class="difficulty-select" role="group" aria-label="Difficulty">
+                  <button class="diff-btn" data-difficulty="easy" onclick="setDifficulty('easy')">Easy</button>
+                  <button class="diff-btn active" data-difficulty="normal" aria-pressed="true" onclick="setDifficulty('normal')">Normal</button>
+                  <button class="diff-btn" data-difficulty="hard" onclick="setDifficulty('hard')">Hard</button>
+                  <button class="diff-btn" data-difficulty="expert" onclick="setDifficulty('expert')">Expert</button>
+                </div>
+                <h3>Match health</h3>
+                <div class="difficulty-select" role="group" aria-label="Match health or survival">
+                  <button class="health-btn active" data-health="100" aria-pressed="true" onclick="setHealth(100)">100 HP</button>
+                  <button class="health-btn" data-health="200" onclick="setHealth(200)">200 HP</button>
+                  <button class="health-btn" data-health="300" onclick="setHealth(300)">300 HP</button>
+                  <button class="health-btn" data-health="400" onclick="setHealth(400)">400 HP</button>
+                  <button class="health-btn" data-health="unlimited" onclick="setHealth('unlimited')">Survival ∞</button>
+                </div>
+                <p id="match-rules" class="match-rules">Knock out your opponent before the timer runs out.</p>
+                <p id="cpu-reveal"></p>
               </div>
-
-              <span class="match-duration-label">MATCH DURATION</span>
-              <div class="difficulty-select">
-                <button class="health-btn active" onclick="setHealth(100)">
-                  100% HP
-                </button>
-                <button class="health-btn" onclick="setHealth(200)">
-                  200% HP
-                </button>
-                <button class="health-btn" onclick="setHealth(300)">
-                  300% HP
-                </button>
-                <button class="health-btn" onclick="setHealth(400)">
-                  400% HP
-                </button>
-                <button
-                  class="health-btn"
-                  onclick="setHealth('unlimited')"
-                  style="width: 100%; margin-top: 5px"
-                >
-                  Unlimited
-                </button>
-              </div>
-
-              <div id="cpu-reveal">CPU: ???</div>
-            </div>
-
-            <div class="fight-actions-container">
-              <button
-                class="btn"
-                id="fight-btn"
-                disabled
-                onclick="preBattleCutscene()"
-              >
-                ⚔ FIGHT!
-              </button>
-              <button class="btn secondary" onclick="showScreen('title')">
-                ← BACK
-              </button>
+              <button class="btn" id="fight-btn" disabled onclick="preBattleCutscene()">Fight <span aria-hidden="true">→</span></button>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- VS CUTSCENE -->
-      <div id="screen-vs" class="screen" style="background: #000">
-        <div
-          style="
-            display: flex;
-            width: 100%;
-            height: 100%;
-            align-items: center;
-            justify-content: space-around;
-          "
-        >
-          <div
-            id="vs-p1"
-            style="
-              transform: translateX(-100vw);
-              transition: transform 0.5s;
-              text-align: center;
-              font-family: var(--font-display);
-              font-size: 3rem;
-              font-weight: 900;
-            "
-          ></div>
-          <div
-            id="vs-text"
-            style="
-              font-family: var(--font-display);
-              font-size: 5rem;
-              font-weight: 900;
-              color: #fff;
-              opacity: 0;
-              transition: opacity 0.3s;
-              font-style: italic;
-            "
-          >
-            VS
-          </div>
-          <div
-            id="vs-cpu"
-            style="
-              transform: translateX(100vw);
-              transition: transform 0.5s;
-              text-align: center;
-              font-family: var(--font-display);
-              font-size: 3rem;
-              font-weight: 900;
-            "
-          ></div>
+      <div id="screen-vs" class="screen" aria-label="Matchup">
+        <div class="matchup">
+          <strong id="vs-p1"></strong><em id="vs-text">VS</em><strong id="vs-cpu"></strong>
         </div>
       </div>
 
-      <!-- BATTLE -->
-      <div id="screen-battle" class="screen" style="padding: 0">
+      <div id="screen-battle" class="screen" aria-label="Battle arena" tabindex="-1">
         <div id="arena">
           <div class="parallax layer-1" id="bg-l1"></div>
           <div class="parallax layer-2" id="bg-l2"></div>
           <div class="parallax layer-3" id="bg-l3"></div>
-          <div id="bg-particles"></div>
           <div class="ground" id="bg-ground"></div>
-
-          <div class="letterbox top" id="lb-top"></div>
-          <div class="letterbox bottom" id="lb-bottom"></div>
-
           <div class="hud" id="hud-el">
-            <button
-              id="end-unlimited-btn"
-              class="btn secondary"
-              style="
-                position: absolute;
-                top: -5px;
-                left: 50%;
-                transform: translateX(-50%);
-                display: none;
-                font-size: 0.7rem;
-                padding: 0.4rem 0.8rem;
-                z-index: 1000;
-                pointer-events: auto;
-                width: auto;
-                min-height: 0;
-                min-width: 0;
-                line-height: 1;
-              "
-              onclick="endUnlimitedMode()"
-            >
-              End Fight
-            </button>
             <div class="hp-container">
-              <div
-                style="
-                  display: flex;
-                  justify-content: space-between;
-                  margin-bottom: 4px;
-                "
-              >
-                <span
-                  id="p1-name"
-                  style="font-family: var(--font-display); font-weight: 700"
-                  >PLAYER</span
-                >
-                <span id="p1-hp-text">100%</span>
-              </div>
-              <div class="hp-bar-outer">
-                <div class="hp-bar-ghost" id="p1-hp-ghost"></div>
-                <div class="hp-bar-fill" id="p1-hp-fill"></div>
-              </div>
-              <div class="power-orbs" id="p1-orbs"></div>
+              <div class="fighter-label"><span id="p1-name">Player</span> <span id="p1-hp-text">100%</span></div>
+              <div class="hp-bar-outer"><div class="hp-bar-ghost" id="p1-hp-ghost"></div><div class="hp-bar-fill" id="p1-hp-fill"></div></div>
+              <div class="power-orbs" id="p1-orbs" aria-label="Player power"></div>
               <div class="weapon-slot" id="p1-weapon"></div>
             </div>
             <div class="round-info">
-              <div
-                style="
-                  font-family: var(--font-display);
-                  font-size: 1.2rem;
-                  display: none;
-                "
-              >
-                ROUND 1
-              </div>
               <div class="timer" id="game-timer">60</div>
+              <div id="round-label"></div>
+              <button class="hud-button" id="pause-btn" onclick="togglePause()" aria-label="Pause match">Ⅱ Pause</button>
             </div>
-            <div class="hp-container" style="text-align: right">
-              <div
-                style="
-                  display: flex;
-                  justify-content: space-between;
-                  margin-bottom: 4px;
-                "
-              >
-                <span id="cpu-hp-text">100%</span>
-                <span
-                  id="cpu-name"
-                  style="font-family: var(--font-display); font-weight: 700"
-                  >CPU</span
-                >
-              </div>
-              <div class="hp-bar-outer">
-                <div class="hp-bar-ghost" id="cpu-hp-ghost"></div>
-                <div
-                  class="hp-bar-fill"
-                  id="cpu-hp-fill"
-                  style="transform-origin: right"
-                ></div>
-              </div>
-              <div
-                class="power-orbs"
-                id="cpu-orbs"
-                style="justify-content: flex-end"
-              ></div>
-              <div class="weapon-slot weapon-slot-cpu" id="cpu-weapon"></div>
+            <div class="hp-container cpu-hud">
+              <div class="fighter-label"><span id="cpu-hp-text">100%</span> <span id="cpu-name">CPU</span></div>
+              <div class="hp-bar-outer"><div class="hp-bar-ghost" id="cpu-hp-ghost"></div><div class="hp-bar-fill" id="cpu-hp-fill"></div></div>
+              <div class="power-orbs" id="cpu-orbs" aria-label="Opponent power"></div>
+              <div class="weapon-slot" id="cpu-weapon"></div>
             </div>
           </div>
-
-          <div
-            id="round-text"
-            style="
-              position: absolute;
-              top: 40%;
-              left: 0;
-              right: 0;
-              text-align: center;
-              font-family: var(--font-display);
-              font-size: 6rem;
-              font-weight: 900;
-              z-index: 120;
-              opacity: 0;
-              pointer-events: none;
-            "
-          ></div>
-          <div id="combo-counter">0 HIT COMBO!</div>
-
-          <canvas
-            id="vfx-layer"
-            style="
-              position: absolute;
-              inset: 0;
-              z-index: 40;
-              pointer-events: none;
-              width: 100%;
-              height: 100%;
-            "
-          ></canvas>
-
-          <div id="p1-sprite" class="fighter"><div class="aura"></div></div>
-          <div id="cpu-sprite" class="fighter"><div class="aura"></div></div>
+          <div id="round-text" aria-hidden="true"></div>
+          <div id="combo-counter" aria-hidden="true"></div>
+          <canvas id="vfx-layer" aria-hidden="true"></canvas>
+          <div id="p1-sprite" class="fighter"></div>
+          <div id="cpu-sprite" class="fighter"></div>
         </div>
-
-        <!-- LANDSCAPE: controls overlay on the arena -->
         <div id="touch-controls">
-          <div id="joystick-zone">
-            <div id="joystick-outer"><div id="joystick-inner"></div></div>
-          </div>
+          <div id="joystick-zone" aria-label="Move and jump"><div id="joystick-outer"><div id="joystick-inner"></div></div></div>
           <div id="action-buttons">
-            <div
-              class="touch-btn"
-              data-key="KeyZ"
-              data-label="ATK"
-              style="border: 2px solid var(--cyan); color: var(--cyan)"
-            >
-              Z
-            </div>
-            <div
-              class="touch-btn"
-              data-key="KeyX"
-              data-label="HVY"
-              style="border: 2px solid var(--orange); color: var(--orange)"
-            >
-              X
-            </div>
-            <div
-              class="touch-btn"
-              data-key="KeyC"
-              data-label="BLK"
-              style="border: 2px solid var(--pink); color: var(--pink)"
-            >
-              C
-            </div>
-            <div
-              class="touch-btn"
-              data-key="KeyV"
-              data-label="SPL"
-              style="border: 2px solid var(--purple); color: var(--purple)"
-            >
-              V
-            </div>
-            <div
-              class="touch-btn dash-btn"
-              data-key="Space"
-              style="border: 2px solid #ccc; color: #fff"
-            >
-              DASH
-            </div>
+            <button type="button" class="touch-btn" data-key="KeyZ">Light</button>
+            <button type="button" class="touch-btn" data-key="KeyX">Heavy</button>
+            <button type="button" class="touch-btn" data-key="KeyC">Block</button>
+            <button type="button" class="touch-btn" data-key="KeyV">Power</button>
+            <button type="button" class="touch-btn dash-btn" data-key="Space">Dash</button>
           </div>
         </div>
-
-        <!-- PORTRAIT: controls panel below arena -->
         <div id="touch-controls-portrait">
-          <div id="portrait-joystick-zone">
-            <div id="portrait-joystick-outer">
-              <div id="portrait-joystick-inner"></div>
-            </div>
-          </div>
+          <div id="portrait-joystick-zone" aria-label="Move and jump"><div id="portrait-joystick-outer"><div id="portrait-joystick-inner"></div></div></div>
           <div id="portrait-action-buttons">
-            <div
-              class="touch-btn portrait-btn"
-              data-key="KeyZ"
-              data-label="ATK"
-              style="border: 2px solid var(--cyan); color: var(--cyan)"
-            >
-              Z
-            </div>
-            <div
-              class="touch-btn portrait-btn"
-              data-key="KeyX"
-              data-label="HVY"
-              style="border: 2px solid var(--orange); color: var(--orange)"
-            >
-              X
-            </div>
-            <div
-              class="touch-btn portrait-btn"
-              data-key="KeyC"
-              data-label="BLK"
-              style="border: 2px solid var(--pink); color: var(--pink)"
-            >
-              C
-            </div>
-            <div
-              class="touch-btn portrait-btn"
-              data-key="KeyV"
-              data-label="SPL"
-              style="border: 2px solid var(--purple); color: var(--purple)"
-            >
-              V
-            </div>
-            <div
-              class="touch-btn portrait-btn dash-btn"
-              data-key="Space"
-              style="border: 2px solid #ccc; color: #fff"
-            >
-              DASH
-            </div>
+            <button type="button" class="touch-btn portrait-btn" data-key="KeyZ">Light</button>
+            <button type="button" class="touch-btn portrait-btn" data-key="KeyX">Heavy</button>
+            <button type="button" class="touch-btn portrait-btn" data-key="KeyC">Block</button>
+            <button type="button" class="touch-btn portrait-btn" data-key="KeyV">Power</button>
+            <button type="button" class="touch-btn portrait-btn dash-btn" data-key="Space">Dash</button>
           </div>
         </div>
+        <dialog id="pause-modal" class="game-dialog" aria-labelledby="pause-heading">
+          <div class="dialog-content">
+            <h2 id="pause-heading">Paused</h2>
+            <div class="menu-btns">
+              <button class="btn" onclick="togglePause()">Resume</button>
+              <button class="btn secondary" id="end-unlimited-btn" hidden onclick="endUnlimitedMode()">Finish survival</button>
+              <button class="btn secondary" onclick="initBattle()">Restart match</button>
+              <button class="btn secondary" onclick="showScreen('title')">Main menu</button>
+            </div>
+          </div>
+        </dialog>
+      </div>
 
-        <div id="pause-modal" class="pause-overlay">
-          <h2
-            style="
-              font-family: var(--font-display);
-              font-size: 4rem;
-              margin-bottom: 2rem;
-            "
-          >
-            PAUSED
-          </h2>
+      <div id="screen-result" class="screen menu-screen">
+        <div class="result-content">
+          <h2 id="result-text" class="result-title"></h2>
+          <p id="result-char"></p>
+          <div class="result-score"><strong id="final-score"></strong><span id="shards-earned"></span></div>
           <div class="menu-btns">
-            <button class="btn" onclick="togglePause()">Resume</button>
-            <button class="btn secondary" onclick="initBattle()">
-              Restart
-            </button>
-            <button class="btn secondary" onclick="showScreen('title')">
-              Main Menu
-            </button>
+            <button class="btn" onclick="preBattleCutscene()">Rematch</button>
+            <button class="btn secondary" onclick="showScreen('character-select')">Choose fighter</button>
+            <button class="btn secondary" onclick="showScreen('shop')">Spirit shop</button>
+            <button class="btn secondary" onclick="showScreen('title')">Main menu</button>
           </div>
         </div>
       </div>
 
-      <!-- RESULT & LEADERBOARD -->
-      <div id="screen-result" class="screen">
-        <h1 id="result-text" class="result-title">VICTORY</h1>
-        <h3 id="result-char" style="margin-bottom: 2rem"></h3>
-        <h2
-          id="final-score"
-          style="
-            font-family: var(--font-display);
-            color: var(--cyan);
-            margin: 2rem 0;
-          "
-        >
-          SCORE: 0
-        </h2>
-        <div class="menu-btns">
-          <button class="btn" onclick="preBattleCutscene()">
-            ▶ Play Again
-          </button>
-          <button
-            class="btn secondary"
-            onclick="showScreen('character-select')"
-          >
-            ⚔ New Character
-          </button>
-          <button class="btn secondary" onclick="showScreen('title')">
-            🏠 Main Menu
-          </button>
+      <div id="screen-leaderboard" class="screen menu-screen">
+        <div class="menu-shell scores-shell">
+          <header class="menu-heading">
+            <div><h2>Leaderboard</h2><p>Your ten highest scores on this device.</p></div>
+            <button class="text-button" onclick="showScreen('title')">Main menu</button>
+          </header>
+          <div id="leaderboard-content"></div>
         </div>
       </div>
 
-      <div id="screen-leaderboard" class="screen">
-        <h2
-          style="
-            font-family: var(--font-display);
-            font-size: 3rem;
-            margin-bottom: 2rem;
-          "
-        >
-          LEADERBOARD
-        </h2>
-        <div
-          id="leaderboard-content"
-          style="
-            width: min(600px, 92vw);
-            background: var(--glass);
-            border-radius: 24px;
-            padding: 2rem;
-            min-height: 300px;
-          "
-        ></div>
-        <button
-          class="btn secondary"
-          style="margin-top: 2rem"
-          onclick="showScreen('title')"
-        >
-          ← BACK
-        </button>
-      </div>
-
-      <div
-        id="modal-how-to-play"
-        class="pause-overlay"
-        onclick="closeModal(event)"
-      >
-        <div
-          class="char-card"
-          style="width: 500px; max-width: 90%; height: auto; cursor: default"
-          onclick="event.stopPropagation()"
-        >
-          <h2 style="font-family: var(--font-display); margin-bottom: 1rem">
-            HOW TO PLAY
-          </h2>
-          <div
-            style="
-              display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 1rem;
-              text-align: left;
-              width: 100%;
-            "
-          >
-            <div><b>Arrows</b>: Move / Jump</div>
-            <div><b>Z</b>: Light Attack</div>
-            <div><b>X</b>: Heavy Attack</div>
-            <div><b>C</b>: Block</div>
-            <div><b>V</b>: Special Move</div>
-            <div><b>Hold V</b>: Ultimate (3 Orbs)</div>
-            <div><b>Space</b>: Dash</div>
-          </div>
-          <button
-            class="btn secondary"
-            style="margin-top: 2rem"
-            onclick="closeModal(null)"
-          >
-            Close
-          </button>
+      <dialog id="modal-how-to-play" class="game-dialog" aria-labelledby="help-heading">
+        <div class="dialog-content">
+          <h2 id="help-heading">How to play</h2>
+          <p>Land hits to build power. Walk into a weapon drop to equip it.</p>
+          <dl class="controls-list">
+            <dt>Move / jump</dt><dd>← → / ↑</dd>
+            <dt>Light / heavy</dt><dd>Z / X</dd>
+            <dt>Block</dt><dd>Hold C</dd>
+            <dt>Dash</dt><dd>Space</dd>
+            <dt>Special · 1 orb</dt><dd>Tap V</dd>
+            <dt>Ultimate · 3 orbs</dt><dd>Hold V</dd>
+            <dt>Pause</dt><dd>Esc</dd>
+          </dl>
+          <p>On touchscreens, drag the stick up to jump. Tap or hold Power for your special or ultimate.</p>
+          <button class="btn" onclick="closeModal()">Close</button>
         </div>
-      </div>
-    </div>
-    <!-- /game-wrapper -->
-
-    <script type="module" src="main.js"></script>
+      </dialog>
+    </main>
+    <script type="module" src="./main.js"></script>
   </body>
 </html>

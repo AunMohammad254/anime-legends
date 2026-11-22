@@ -1,60 +1,70 @@
-import { describe, it, expect } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Projectile } from "../src/entities/Projectile.js";
 
-describe("Projectile", () => {
-  describe("constructor", () => {
-    it("initializes with correct properties", () => {
-      const proj = new Projectile({
-        x: 100,
-        y: 200,
-        vx: 5,
-        vy: 3,
-        color: "#ff0000",
-        dmg: 20,
-      });
+describe("Projectile in the battle arena", () => {
+  let engine;
+  let owner;
+  let target;
+  let onHit;
 
-      expect(proj.x).toBe(100);
-      expect(proj.y).toBe(200);
-      expect(proj.vx).toBe(5);
-      expect(proj.vy).toBe(3);
-      expect(proj.dmg).toBe(20);
-      expect(proj.active).toBe(true);
-    });
-
-    it("uses default values", () => {
-      const proj = new Projectile({ x: 0, y: 0, color: "#fff" });
-      expect(proj.vx).toBe(0);
-      expect(proj.vy).toBe(0);
-      expect(proj.dmg).toBe(10);
-    });
+  beforeEach(() => {
+    const arenaEl = document.createElement("div");
+    Object.defineProperties(arenaEl, { offsetWidth: { value: 800 }, offsetHeight: { value: 500 } });
+    owner = { x: 130, y: 0, hp: 100, data: { color: "#f00" }, isPlayer: true, dashActive: 0, takeDamage: vi.fn() };
+    target = { ...owner, x: 210, isPlayer: false, isBlocking: false, takeDamage: vi.fn() };
+    engine = { arenaEl, p1: owner, cpu: target, spawnParticles: vi.fn(), playSound: vi.fn() };
+    onHit = vi.fn();
   });
 
-  describe("update", () => {
-    it("updates position based on velocity", () => {
-      const proj = new Projectile({ x: 0, y: 0, vx: 5, vy: 3, color: "#fff" });
-      proj.update(16);
-      expect(proj.x).toBe(5);
-      expect(proj.y).toBe(3);
-    });
+  function fire(config = {}) {
+    return new Projectile({ x: 175, y: 80, vx: 12, owner, dmg: 20, onHit, ...config }, engine);
+  }
+
+  it("applies a special on contact and removes the projectile", () => {
+    const shot = fire();
+    shot.update(16);
+    expect(target.takeDamage).toHaveBeenCalledWith(20, 6, false, false);
+    expect(onHit).toHaveBeenCalledWith(target, owner);
+    expect(shot.active).toBe(false);
+    expect(engine.arenaEl.children).toHaveLength(0);
   });
 
-  describe("isOffScreen", () => {
-    it("detects off-screen projectiles", () => {
-      const proj = new Projectile({ x: -10, y: 0, color: "#fff" });
-      expect(proj.isOffScreen({ width: 800, height: 600 })).toBe(true);
-    });
-
-    it("returns false for on-screen projectiles", () => {
-      const proj = new Projectile({ x: 100, y: 100, color: "#fff" });
-      expect(proj.isOffScreen({ width: 800, height: 600 })).toBe(false);
-    });
+  it("delegates guard mitigation to the fighter and suppresses secondary effects", () => {
+    target.isBlocking = true;
+    fire().update(16);
+    expect(target.takeDamage).toHaveBeenCalledWith(20, 6, false, true);
+    expect(onHit).not.toHaveBeenCalled();
   });
 
-  describe("deactivate", () => {
-    it("sets active to false", () => {
-      const proj = new Projectile({ x: 0, y: 0, color: "#fff" });
-      proj.deactivate();
-      expect(proj.active).toBe(false);
-    });
+  it("reflects a shot toward the original caster when the defender blocks with a gauntlet", () => {
+    target.isBlocking = true;
+    target.weapon = { id: "gauntlet" };
+    const shot = fire();
+    shot.update(16);
+    expect(shot.owner).toBe(target);
+    expect(shot.vx).toBeLessThan(0);
+    shot.update(16);
+    expect(owner.takeDamage).toHaveBeenCalledOnce();
+    expect(onHit).toHaveBeenCalledWith(owner, target);
+  });
+
+  it("doesn't collide at a different height or during a dash", () => {
+    const shot = fire({ y: 0 });
+    target.y = 150;
+    shot.update(16);
+    target.y = 0;
+    target.dashActive = 40;
+    shot.update(16);
+    expect(shot.active).toBe(true);
+    expect(target.takeDamage).not.toHaveBeenCalled();
+  });
+
+  it("expires stationary shots and removes offscreen shots", () => {
+    const stationary = fire({ x: 500, y: 0, vx: 0 });
+    stationary.update(4100);
+    expect(stationary.active).toBe(false);
+    const stray = fire({ x: 925 });
+    stray.update(16);
+    expect(stray.active).toBe(false);
   });
 });

@@ -1,0 +1,93 @@
+/* All six pieces retain their own pivot for punches, kicks and running. */
+.fighter-inner[class*="fighter-"] .s-body {
+  left: 23px;
+  width: 54px;
+  height: 65px;
+  border-radius: 8px;
+  background: linear-gradient(125deg, currentColor 0 19%, #f5f9ff 20% 24%, #22283c 25% 53%, currentColor 54% 64%, #121929 65% 79%, currentColor 80%);
+  clip-path: polygon(10% 0, 86% 0, 100% 22%, 79% 59%, 90% 100%, 7% 94%, 19% 58%, 0 27%);
+}
+.fighter-inner[class*="fighter-"] .s-head {
+  left: 29px;
+  top: 2px;
+  width: 42px;
+  height: 40px;
+  border-radius: 22% 32% 35% 32%;
+  background: linear-gradient(148deg, currentColor 0 29%, #272f44 30% 44%, #f9ceb2 45% 69%, #171c30 70%);
+}
+.fighter-inner[class*="fighter-"] .s-head::before {
+  content: "";
+  position: absolute;
+  inset: -11px -5px 15px -8px;
+  background: linear-gradient(132deg, #15192b 10%, currentColor 58%, #f6f4ec 100%);
+  clip-path: polygon(0 80%, 17% 43%, 6% 30%, 35% 32%, 27% 0, 52% 26%, 66% 2%, 76% 24%, 99% 12%, 84% 55%, 97% 64%, 66% 70%, 49% 95%, 38% 74%, 22% 100%, 18% 76%);
+}
+.fighter-inner[class*="fighter-"] .s-head::after {
+  content: "";
+  position: absolute;
+  top: 19px;
+  right: 3px;
+  width: 13px;
+  height: 3px;
+  background: #faffff;
+  border-bottom: 2px solid #282632;
+  transform: rotate(-8deg);
+}
+.fighter-inner[class*="fighter-"] :is(.s-arm-l,.s-arm-r) {
+  width: 16px;
+  height: 54px;
+  border-radius: 6px 6px 9px 5px;
+  background: linear-gradient(155deg, currentColor 0 23%, #252d40 24% 45%, #e2b89e 46% 62%, currentColor 63% 70%, #283044 71% 85%, #f4c5a8 86%);
+}
+.fighter-inner[class*="fighter-"] :is(.s-leg-l,.s-leg-r) {
+  width: 20px;
+  height: 61px;
+  border-radius: 3px 4px 7px 2px;
+  background: linear-gradient(153deg, #363c51 5%, #191e30 45%, currentColor 46% 54%, #23293b 55% 79%, currentColor 80%);
+}
+.fighter-inner[class*="fighter-"] .s-leg-l { left: 28px; }
+.fighter-inner[class*="fighter-"] .s-arm-l { left: 17px; filter: brightness(.77); }
+.fighter-inner[class*="fighter-"] .s-arm-r { left: 65px; }
+.fighter-inner:is(.fighter-shadow,.fighter-venom,.fighter-soul) .s-head {
+  background: linear-gradient(166deg, #191b2c 42%, #e5bda7 43% 62%, currentColor 63% 72%, #21273c 73%);
+}
+.fighter-inner:is(.fighter-shadow,.fighter-venom,.fighter-soul) .s-head::before {
+  clip-path: polygon(0 85%, 10% 24%, 54% 0, 83% 12%, 100% 52%, 75% 61%, 33% 80%, 2% 100%);
+}
+.fighter-inner:is(.fighter-frost,.fighter-iron,.fighter-terra) .s-body {
+  left: 17px;
+  width: 64px;
+  clip-path: polygon(10% 0, 90% 0, 100% 29%, 83% 39%, 75% 72%, 82% 94%, 20% 100%, 18% 53%, 0 29%);
+}
+.fighter-inner:is(.fighter-frost,.fighter-iron,.fighter-terra) .s-head::before {
+  clip-path: polygon(0 6%, 29% 33%, 51% 0, 70% 31%, 100% 3%, 87% 83%, 67% 72%, 50% 100%, 16% 73%);
+}
+.fighter-inner:is(.fighter-aqua,.fighter-aero) .s-head::before {
+  left: -15px;
+  clip-path: polygon(0 100%, 24% 26%, 55% 0, 88% 19%, 100% 54%, 83% 65%, 47% 59%, 14% 100%, 24% 73%);
+}
+.fighter-inner:is(.fighter-aqua,.fighter-aero,.fighter-soul) .s-body::after {
+  content: "";
+  position: absolute;
+  inset: 15% 8% 0;
+  background: linear-gradient(117deg, transparent 36%, currentColor 37% 54%, transparent 55%);
+}
+.fighter.hurt { animation: none; }
+.fighter.hurt .fighter-inner { filter: brightness(1.7); }
+.proj { pointer-events: none; }
+.proj.spirit-shot {
+  width: 38px;
+  height: 19px;
+  border-radius: 85% 42% 42% 85%;
+  background: radial-gradient(ellipse at 70% 50%, white 0 12%, currentColor 36%, transparent 76%);
+  box-shadow: 7px 0 14px -3px currentColor;
+}
+.proj.arrow-shot { font-size: 36px; line-height: 1; text-shadow: 0 0 8px currentColor; }
+.proj.shadow-double {
+  width: 66px;
+  height: 135px;
+  margin-left: -33px;
+  opacity: .7;
+  background: linear-gradient(90deg, transparent, currentColor);
+  clip-path: polygon(55% 0,80% 6%,65% 23%,100% 40%,97% 47%,65% 41%,76% 66%,88% 95%,74% 100%,48% 71%,16% 100%,0 97%,30% 61%,34% 35%,8% 46%,4% 35%,33% 20%);
+}

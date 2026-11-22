@@ -1,27 +1,48 @@
 export class AudioManager {
   constructor() {
-    this.enabled = localStorage.getItem("anime-audio") === "true";
+    this.enabled = false;
+    try {
+      this.enabled = localStorage.getItem("anime-audio") === "true";
+    } catch {
+      // Browsers can disable persistent storage while still allowing audio.
+    }
+    this.musicRequested = false;
     this.ctx = null;
     this.bgmNodes = [];
   }
 
   init() {
-    if (this.ctx) return;
-    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    if (this.enabled) this.startBGM();
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!this.ctx && AudioContext) {
+      try {
+        this.ctx = new AudioContext();
+      } catch {
+        // Some browsers limit how many contexts a tab may create.
+      }
+    }
+    if (!this.ctx) {
+      this.enabled = false;
+      return;
+    }
+    if (this.enabled && this.ctx.state === "suspended") this.ctx.resume().catch(() => {});
   }
 
   toggle() {
-    if (!this.ctx) this.init();
-    this.enabled = !this.enabled;
-    localStorage.setItem("anime-audio", this.enabled);
+    this.init();
+    this.enabled = Boolean(this.ctx) && !this.enabled;
+    try {
+      localStorage.setItem("anime-audio", String(this.enabled));
+    } catch {
+      // The current session still honors the player's choice.
+    }
 
     if (this.enabled) {
-      this.ctx.resume();
-      this.startBGM();
+      this.ctx.resume().catch(() => {});
+      if (this.musicRequested) this.startBGM();
+      else this.playSound("swing");
     } else {
-      this.ctx.suspend();
-      this.stopBGM();
+      this.clearBGM();
+      this.ctx?.suspend().catch(() => {});
     }
     return this.enabled;
   }
@@ -33,6 +54,10 @@ export class AudioManager {
     const gain = this.ctx.createGain();
     osc.connect(gain);
     gain.connect(this.ctx.destination);
+    osc.onended = () => {
+      osc.disconnect();
+      gain.disconnect();
+    };
 
     const t = this.ctx.currentTime;
 
@@ -84,8 +109,8 @@ export class AudioManager {
   }
 
   startBGM() {
-    if (!this.enabled || !this.ctx) return;
-    this.stopBGM();
+    this.musicRequested = true;
+    if (!this.enabled || !this.ctx || this.bgmNodes.length) return;
 
     const master = this.ctx.createGain();
     master.gain.value = 0.15;
@@ -140,11 +165,17 @@ export class AudioManager {
       stop: () => {
         clearInterval(bInt);
         clearInterval(aInt);
+        for (const node of [bass, bFilt, bGain, arp, aGain, master]) node.disconnect();
       },
     });
   }
 
   stopBGM() {
+    this.musicRequested = false;
+    this.clearBGM();
+  }
+
+  clearBGM() {
     this.bgmNodes.forEach((n) => n.stop());
     this.bgmNodes = [];
   }

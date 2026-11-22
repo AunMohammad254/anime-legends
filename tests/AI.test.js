@@ -26,11 +26,14 @@ describe("AIController", () => {
       maxHp: 100,
       power: 0,
       state: "idle",
-      cooldowns: { ult: 0 },
+      cooldowns: { ult: 0, hurt: 0, actionLock: 0 },
+      combatState: { canAct: true },
+      data: { id: "blaze" },
+      spdMult: 1,
       setState: vi.fn(),
       pendingActions: []
     };
-    p1 = { x: 100, y: 0, state: "idle" };
+    p1 = { x: 100, y: 0, hp: 100, state: "idle" };
     engine = {
       difficulty: "normal",
       activeWeaponDrop: null,
@@ -41,8 +44,6 @@ describe("AIController", () => {
     };
 
     ai = new AIController(cpu, p1, engine);
-    // Mock Date.now to return 0 to bypass execution delay
-    vi.spyOn(Date, "now").mockReturnValue(0);
     // Mock Math.random for predictable behavior
     vi.spyOn(Math, "random").mockReturnValue(0);
   });
@@ -80,9 +81,15 @@ describe("AIController", () => {
     vi.spyOn(Math, "random").mockReturnValue(0.9); 
     ai.update();
     expect(ai.state).toBe("BLOCK");
+    expect(cpu.isBlocking).toBe(true);
+    ai.update(200);
+    expect(cpu.isBlocking).toBe(true);
+    ai.update(500);
+    expect(cpu.isBlocking).toBe(false);
   });
 
   it("should retreat if HP is low and not expert", () => {
+    cpu.x = 180;
     cpu.hp = 20; // < 30%
     ai.state = "ATTACK";
     ai.update();
@@ -102,6 +109,6 @@ describe("AIController", () => {
     cpu.power = 3;
     ai.state = "ATTACK";
     ai.update();
-    expect(ai.state).toBe("ULTIMATE");
+    expect(engine.useUltimate).toHaveBeenCalledWith(cpu, p1);
   });
 });

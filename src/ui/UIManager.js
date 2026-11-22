@@ -1,13 +1,24 @@
 import { CHARACTERS, WEAPON_SKINS, STAT_BOOSTS } from "../../constants.js";
 import { state } from "../../state.js";
 import { engine } from "../../engine.js";
+import { createFighterHTML } from "../entities/Character.js";
 import { ScreenManager } from "./ScreenManager.js";
 import { HUDRenderer } from "./HUDRenderer.js";
 
-/**
- * UIManager.js
- * Main UI orchestrator. Handles shop, character select, and global UI state.
- */
+const byId = (id) => document.getElementById(id);
+
+function markChoice(buttons, key, value) {
+  for (const button of buttons) {
+    const selected = button.dataset[key] === String(value);
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  }
+}
+
+function portrait(fighter) {
+  return `<div class="sprite-preview" aria-hidden="true">${createFighterHTML(fighter)}</div>`;
+}
+
 export class UIManager {
   constructor() {
     this.selectedChar = null;
@@ -15,387 +26,271 @@ export class UIManager {
     this.difficulty = "normal";
     this.matchHealth = 100;
     this.shopTab = "chars";
-    this.particles = [];
-    
     this.screenManager = new ScreenManager(this);
-    this.hudRenderer = new HUDRenderer(this);
+    this.hudRenderer = new HUDRenderer();
   }
 
   init() {
-    this.canvas = document.getElementById("particle-canvas");
-    this.ctx = this.canvas?.getContext("2d");
-    this.initParticles();
-    this.drawParticles();
-
     this.updateShards(state.spiritShards);
     this.screenManager.init();
     this.setupEngineCallbacks();
-
-    // Initial renders
-    this.selectChar("blaze"); // This will also call renderCharSelect()
-    this.renderLeaderboard();
+    this.selectChar("blaze");
+    this.setHealth(this.matchHealth);
+    this.setDifficulty(this.difficulty);
+    state.on("storageUnavailable", () => {
+      if (!this.storageWarningShown) {
+        this.storageWarningShown = true;
+        this.showToast("Your browser could not save progress. Scores and purchases last for this session.");
+      }
+    });
+    state.on("progressLoaded", () => {
+      this.updateShards(state.spiritShards);
+      const screen = this.screenManager.activeScreen;
+      if (screen === "shop") this.renderShop();
+      if (screen === "leaderboard") this.renderLeaderboard();
+      if (!state.isUnlocked(this.selectedChar.id)) this.selectChar("blaze");
+      else if (screen === "character-select") this.renderCharSelect();
+    });
   }
 
   setupEngineCallbacks() {
-    engine.onHUDUpdate = (p1, cpu, timer) => this.hudRenderer.update(p1, cpu, timer, this.matchHealth);
+    engine.onHUDUpdate = (p1, cpu, timer) => {
+      const phase = this.matchHealth === "unlimited" ? `Wave ${engine.survivalKills + 1}` : engine.bossPhase ? "Final boss" : "";
+      this.hudRenderer.update(p1, cpu, timer, this.matchHealth, phase);
+    };
     engine.onComboUpdate = (n) => this.hudRenderer.updateCombo(n);
     engine.onShake = (amt) => this.hudRenderer.shakeScreen(amt);
     engine.onGameEnd = (result, p1, cpu, timer) => this.handleGameEnd(result, p1, cpu, timer);
   }
 
-  // --- REUSABLE COMPONENTS ---
-  createFighterHTML(color) {
-    return `<div class="fighter-inner" style="color: ${color}"><div class="sprite-part s-head"></div><div class="sprite-part s-body"></div><div class="sprite-part s-arm-l"></div><div class="sprite-part s-arm-r"></div><div class="sprite-part s-leg-l"></div><div class="sprite-part s-leg-r"></div></div>`;
-  }
-
-  renderStat(label, val, color) {
-    return `<div class="stat-row"><span style="width:30px">${label}</span><div class="bar-bg"><div class="bar-fill" style="width: ${val * 10}%; background: ${color}; animation: barFillAnim 0.6s ease-out forwards;"></div></div></div>`;
-  }
-
-  renderItemCard({ id, title, subtitle, color, unlocked, price, actionLabel, actionOnClick, iconHTML }) {
-    return `
-            <div class="char-card ${unlocked ? "" : "locked"}" id="card-${id}" style="--char-color: ${color || "var(--cyan)"}">
-                ${!unlocked ? '<div style="position:absolute; top:10px; right:10px; font-size:1.2rem; z-index:20">🔒</div>' : ""}
-                ${iconHTML || ""}
-                <div style="font-family:var(--font-display); font-weight:700; margin-top:10px;">${title}</div>
-                <div style="font-size:0.8rem; color:#aaa; text-align:center">${subtitle}</div>
-                <div style="color:var(--cyan); font-weight:700; margin:10px 0;">
-                    ${unlocked ? (price === 0 ? "DEFAULT" : "OWNED") : `💎 ${price}`}
-                </div>
-                <button class="btn ${unlocked ? "secondary" : ""}" 
-                        style="padding:0.5rem 1rem; font-size:0.8rem;" 
-                        onclick="${actionOnClick}">
-                    ${unlocked ? actionLabel || "EQUIPPED" : "BUY NOW"}
-                </button>
-            </div>
-        `;
-  }
-
-  // --- CHARACTER SELECT ---
-  renderCharSelect() {
-    const grid = document.getElementById("char-grid");
-    if (!grid) return;
-    grid.innerHTML = CHARACTERS.map((c) => {
-      const unlocked = state.isUnlocked(c.id);
-      return `
-                <div class="char-card ${unlocked ? "" : "locked"} ${this.selectedChar?.id === c.id ? "selected" : ""}" 
-                     id="card-${c.id}" 
-                     onclick="${unlocked ? `selectChar('${c.id}')` : `showScreen('shop')`}"
-                     style="--char-color: ${c.color}; opacity: ${unlocked ? 1 : 0.6}; width: 140px; min-height: 180px; padding: 1rem 0.5rem; justify-content: space-between;">
-                    ${!unlocked ? '<div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:2rem; background:rgba(0,0,0,0.4); z-index:20">🔒</div>' : ""}
-                    <div class="sprite-preview" style="transform: scale(0.6) translateY(-20px); margin: 0; display:flex; justify-content:center; align-items:center; height: 100px;">${this.createFighterHTML(c.color)}</div>
-                    <div style="font-family:var(--font-display); font-weight:900; font-size: 1rem; text-align: center; margin-top: auto; position: relative; z-index: 100; text-shadow: 0 2px 5px #000, 0 -2px 5px #000, 2px 0 5px #000, -2px 0 5px #000;">${c.name}</div>
-                </div>
-            `;
-    }).join("");
-
-    const detailsBox = document.getElementById("char-details-box");
-    if (this.selectedChar && detailsBox) {
-      const c = this.selectedChar;
-      detailsBox.innerHTML = `
-                <div style="font-family:var(--font-display); font-weight:700; font-size: 1.8rem; color: ${c.color}; margin-bottom: 10px; text-align: center;">${c.name}</div>
-                <div style="background:${c.color}; padding:4px 15px; border-radius:15px; font-size:0.8rem; margin-bottom: 20px; color: #000; font-weight: 900;">${c.element} Element</div>
-                <style>@keyframes barFillAnim { from { width: 0; } }</style>
-                <div class="stat-bars" style="width: 100%; text-align: left;">
-                    ${this.renderStat("ATK", c.atk, c.color)} 
-                    ${this.renderStat("SPD", c.spd, c.color)} 
-                    ${this.renderStat("DEF", c.def, c.color)}
-                </div>
-                <div style="font-size:0.85rem; color:#ccc; text-align:left; margin-top: 20px; padding: 15px; background: rgba(0,0,0,0.5); border-radius: 15px; width: 100%;">
-                    <div style="margin-bottom: 8px;"><b style="color:var(--cyan);">Special:</b> ${c.special}</div>
-                    <div><b style="color:var(--pink);">Ultimate:</b> ${c.ultimate}</div>
-                </div>
-            `;
+  showScreen(id) {
+    const target = byId(`screen-${id}`);
+    if (!target) return;
+    clearTimeout(this.matchupTimeout);
+    clearTimeout(this.roundTimeout);
+    const pauseDialog = byId("pause-modal");
+    if (pauseDialog?.open) pauseDialog.close();
+    if (this.screenManager.activeScreen === "battle" && engine.gameActive && id !== "battle") {
+      engine.stopBattle();
     }
+    if (id === "shop") this.renderShop();
+    if (id === "leaderboard") this.renderLeaderboard();
+    if (id === "character-select") this.renderCharSelect();
+    this.screenManager.showScreen(id);
+  }
+
+  renderCharSelect() {
+    const grid = byId("char-grid");
+    if (!grid) return;
+    const previousFocus = grid.contains(document.activeElement) ? document.activeElement.id : null;
+    grid.innerHTML = CHARACTERS.map((c) => {
+      const selected = this.selectedChar?.id === c.id;
+      const owned = state.isUnlocked(c.id);
+      return `<button type="button" class="char-card roster-card${selected ? " selected" : ""}" id="fighter-${c.id}"
+        aria-pressed="${selected}" style="--char-color:${c.color}" onclick="selectChar('${c.id}')">
+        ${portrait(c)}<strong>${c.name}</strong><small>${owned ? c.element : `◆ ${c.price}`}</small>
+      </button>`;
+    }).join("");
+    if (previousFocus) byId(previousFocus)?.focus({ preventScroll: true });
+
+    const c = this.selectedChar;
+    if (!c) return;
+    const details = byId("char-details-box");
+    details.innerHTML = `<div class="fighter-summary">
+      <span class="element-name" style="color:${c.color}">${c.element}</span><h3>${c.name}</h3>
+      <p><b>Special</b> ${c.special}</p><p><b>Ultimate</b> ${c.ultimate}</p>
+    </div><dl class="stat-bars">${[["Attack", c.atk], ["Speed", c.spd], ["Defense", c.def]].map(([name, stat]) =>
+      `<div class="stat-row"><dt>${name}</dt><dd><span style="--stat:${stat * 10}%; --char-color:${c.color}"></span><b>${stat}</b></dd></div>`
+    ).join("")}</dl>`;
   }
 
   selectChar(id) {
-    this.selectedChar = CHARACTERS.find((c) => c.id === id);
+    const fighter = CHARACTERS.find((c) => c.id === id);
+    if (!fighter) return;
+    if (!state.isUnlocked(id)) {
+      this.shopTab = "chars";
+      this.showScreen("shop");
+      byId(`shop-${id}`)?.focus();
+      return;
+    }
+    this.selectedChar = fighter;
+    const opponents = CHARACTERS.filter((c) => c.id !== id);
+    this.cpuChar = opponents[Math.floor(Math.random() * opponents.length)];
     this.renderCharSelect();
-
-    const unlocked = CHARACTERS.filter((c) => state.isUnlocked(c.id));
-    this.cpuChar = unlocked[Math.floor(Math.random() * unlocked.length)];
-
-    const cpuReveal = document.getElementById("cpu-reveal");
-    if (cpuReveal) {
-      cpuReveal.innerText = `CPU: ${this.cpuChar.name}`;
-      cpuReveal.style.color = this.cpuChar.color;
-    }
-
-    const btn = document.getElementById("fight-btn");
-    if (btn) {
-      btn.disabled = false;
-      btn.style.opacity = 1;
-      btn.style.cursor = "pointer";
-    }
+    byId("cpu-reveal").textContent = `Opponent · ${this.cpuChar.name}`;
+    byId("fight-btn").disabled = false;
   }
 
-  setDifficulty(d) {
-    this.difficulty = d;
-    document.querySelectorAll(".diff-btn").forEach((b) =>
-      b.classList.toggle("active", b.innerText.toLowerCase() === d)
-    );
+  setDifficulty(difficulty) {
+    this.difficulty = difficulty;
+    markChoice(document.querySelectorAll("[data-difficulty]"), "difficulty", difficulty);
+    this.updateMatchRules();
   }
 
-  setHealth(h) {
-    this.matchHealth = h;
-    document.querySelectorAll(".health-btn").forEach((b) =>
-      b.classList.toggle("active", b.innerText.toLowerCase().includes(h.toString().toLowerCase()))
-    );
+  setHealth(health) {
+    this.matchHealth = health;
+    markChoice(document.querySelectorAll("[data-health]"), "health", health);
+    this.updateMatchRules();
   }
 
-  // --- SHOP ---
+  updateMatchRules() {
+    const rules = byId("match-rules");
+    if (!rules) return;
+    if (this.matchHealth === "unlimited") rules.textContent = "Face stronger waves on one health bar. Pause to finish your run.";
+    else if (this.difficulty === "expert") rules.textContent = "Defeat the expert opponent, then face their final boss form.";
+    else rules.textContent = "Knock out your opponent or finish with more health.";
+  }
+
+  setShopTab(tab) {
+    this.shopTab = tab;
+    this.renderShop();
+  }
+
   renderShop() {
-    const grid = document.getElementById("shop-grid");
-    if (!grid) return;
-    let html = `
-            <div style="width:100%; display:flex; justify-content:center; gap:10px; margin-bottom:20px;">
-                <button class="diff-btn ${this.shopTab === "chars" ? "active" : ""}" onclick="setShopTab('chars')">Warriors</button>
-                <button class="diff-btn ${this.shopTab === "skins" ? "active" : ""}" onclick="setShopTab('skins')">Weapon Skins</button>
-                <button class="diff-btn ${this.shopTab === "boosts" ? "active" : ""}" onclick="setShopTab('boosts')">Power Boosts</button>
-            </div>
-        `;
-
+    const grid = byId("shop-grid");
+    const previousFocus = grid.contains(document.activeElement) ? document.activeElement.id : null;
+    markChoice(document.querySelectorAll("[data-tab]"), "tab", this.shopTab);
+    const note = byId("shop-note");
     if (this.shopTab === "chars") {
-      html += CHARACTERS.filter((c) => c.price > 0).map((c) =>
-        this.renderItemCard({
-          id: c.id,
-          title: c.name,
-          subtitle: c.element + " Warrior",
-          color: c.color,
-          unlocked: state.isUnlocked(c.id),
-          price: c.price,
-          actionOnClick: `buyCharacter('${c.id}')`,
-          iconHTML: `<div class="sprite-preview" style="transform:scale(0.8)">${this.createFighterHTML(c.color)}</div>`,
-        })
-      ).join("");
+      note.textContent = "Unlock fighters with Spirit Shards earned in matches.";
+      grid.innerHTML = CHARACTERS.filter((c) => c.price > 0).map((c) => this.shopCard({
+        id: c.id, title: c.name, color: c.color, detail: c.element, icon: portrait(c),
+        label: state.isUnlocked(c.id) ? "Owned" : `Unlock · ◆ ${c.price}`,
+        disabled: state.isUnlocked(c.id), handler: "buyCharacter",
+      })).join("");
     } else if (this.shopTab === "skins") {
-      html += WEAPON_SKINS.map((s) =>
-        this.renderItemCard({
-          id: s.id,
-          title: s.name,
-          subtitle: "Glow Effect",
-          color: s.color,
-          unlocked: state.isSkinUnlocked(s.id),
-          price: s.price,
-          actionLabel: state.data.activeSkinId === s.id ? "EQUIPPED" : "EQUIP",
-          actionOnClick: `buySkin('${s.id}')`,
-          iconHTML: `<div style="font-size:4rem; margin:20px 0; color:${s.color || "#fff"}">⚔</div>`,
-        })
-      ).join("");
-    } else if (this.shopTab === "boosts") {
-      html += STAT_BOOSTS.map((b) =>
-        this.renderItemCard({
-          id: b.id,
-          title: b.name,
-          subtitle: b.desc,
-          color: "var(--orange)",
-          unlocked: state.isBoostActive(b.id),
-          price: b.price,
-          actionLabel: state.isBoostActive(b.id) ? "ACTIVE" : "ACTIVATE",
-          actionOnClick: `toggleBoost('${b.id}')`,
-          iconHTML: `<div style="font-size:4rem; margin:20px 0; color:var(--orange)">⚡</div>`,
-        })
-      ).join("");
+      note.textContent = "Equip a glow for your weapons.";
+      grid.innerHTML = WEAPON_SKINS.map((s) => this.shopCard({
+        id: s.id, title: s.name, color: s.color || "#d0e0e4", detail: "Weapon skin", icon: '<span class="shop-symbol" aria-hidden="true">⚔</span>',
+        label: state.data.activeSkinId === s.id ? "Equipped" : state.isSkinUnlocked(s.id) ? "Equip" : `Unlock · ◆ ${s.price}`,
+        disabled: state.data.activeSkinId === s.id, handler: "buySkin",
+      })).join("");
+    } else {
+      note.textContent = "Unlock boosts once. Equip up to two. A third replaces the oldest.";
+      grid.innerHTML = STAT_BOOSTS.map((b) => this.shopCard({
+        id: b.id, title: b.name, color: "#ff9253", detail: b.desc, icon: '<span class="shop-symbol" aria-hidden="true">ϟ</span>',
+        label: state.isBoostActive(b.id) ? "Unequip" : state.isBoostUnlocked(b.id) ? "Equip" : `Unlock · ◆ ${b.price}`,
+        handler: "toggleBoost",
+      })).join("");
     }
+    if (previousFocus) {
+      const newButton = byId(previousFocus);
+      (newButton?.disabled ? document.querySelector("[data-tab].active") : newButton)?.focus({ preventScroll: true });
+    }
+  }
 
-    grid.innerHTML = html;
+  shopCard({ id, title, color, detail, icon, label, disabled, handler }) {
+    return `<article class="char-card shop-card" style="--char-color:${color}">
+      ${icon}<h3>${title}</h3><p>${detail}</p>
+      <button id="shop-${id}" type="button" class="item-action" ${disabled ? "disabled" : ""} onclick="${handler}('${id}')">${label}</button>
+    </article>`;
   }
 
   buyCharacter(id) {
-    const char = CHARACTERS.find((c) => c.id === id);
-    if (state.isUnlocked(id)) return;
-    if (state.spendShards(char.price)) {
-      state.unlockCharacter(id);
-      this.renderShop();
-      this.showToast(`${char.name} Joined the Roster!`);
-    } else {
-      this.showToast("Not enough Spirit Shards!", true);
-    }
+    const c = CHARACTERS.find((c) => c.id === id);
+    if (!c || state.isUnlocked(id)) return;
+    if (!state.buyCharacter(id)) return this.showToast("You need more Spirit Shards.", true);
+    this.renderShop();
+    this.showToast(`${c.name} joined your roster.`);
   }
 
   buySkin(id) {
-    const skin = WEAPON_SKINS.find((s) => s.id === id);
-    if (state.isSkinUnlocked(id)) {
-      state.setSkin(id);
-      this.renderShop();
-      return;
-    }
-    if (state.spendShards(skin.price)) {
-      state.unlockSkin(id);
-      state.setSkin(id);
-      this.renderShop();
-      this.showToast(`${skin.name} Equipped!`);
-    } else {
-      this.showToast("Not enough Spirit Shards!", true);
-    }
+    const s = WEAPON_SKINS.find((s) => s.id === id);
+    if (!s) return;
+    if (!state.buySkin(id)) return this.showToast("You need more Spirit Shards.", true);
+    this.renderShop();
+    this.showToast(`${s.name} equipped.`);
   }
 
   toggleBoost(id) {
-    const boost = STAT_BOOSTS.find((b) => b.id === id);
-    const alreadyActive = state.isBoostActive(id);
-    state.toggleBoost(id);
+    const b = STAT_BOOSTS.find((b) => b.id === id);
+    if (!b) return;
+    if (!state.toggleBoost(id)) return this.showToast("You need more Spirit Shards.", true);
     this.renderShop();
-    this.showToast(alreadyActive ? `${boost.name} Deactivated.` : `${boost.name} Activated!`);
+    this.showToast(`${b.name} ${state.isBoostActive(id) ? "equipped" : "unequipped"}.`);
   }
 
-  showToast(msg, isError = false) {
-    const container = document.getElementById("toast-container");
-    if (!container) return;
+  showToast(message, isError = false) {
     const toast = document.createElement("div");
-    toast.className = `toast ${isError ? "error" : ""}`;
-    toast.innerText = msg;
-    container.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
+    toast.className = `toast${isError ? " error" : ""}`;
+    toast.textContent = message;
+    byId("toast-container").replaceChildren(toast);
+    setTimeout(() => toast.remove(), 3500);
   }
 
   updateShards(shards) {
-    const el = document.getElementById("shard-count");
-    if (el) el.innerText = shards;
+    document.querySelectorAll("#shard-count, [data-balance]").forEach((el) => {
+      el.textContent = String(shards);
+    });
   }
 
-  // --- LEADERBOARD ---
   renderLeaderboard() {
+    const container = byId("leaderboard-content");
     const scores = state.data.highScores;
-    const container = document.getElementById("leaderboard-content");
-    if (!container) return;
-    if (!scores || scores.length === 0) {
-      container.innerHTML = `<div style="text-align:center; padding-top:100px; color:#666; font-style:italic">No battles yet — go fight!</div>`;
+    if (!scores.length) {
+      container.textContent = "Finish a match to record your first score.";
       return;
     }
-    container.innerHTML = `
-            <table style="width:100%; border-collapse:collapse; text-align:left">
-                <tr style="border-bottom:1px solid #333; color:#aaa; font-size:0.8rem">
-                    <th style="padding:10px">RANK</th><th style="padding:10px">FIGHTER</th><th style="padding:10px">SCORE</th><th style="padding:10px">DATE</th>
-                </tr>
-                ${scores.map((s, i) => `
-                    <tr style="border-bottom:1px solid #111; ${i < 3 ? `border-left: 4px solid ${i == 0 ? "gold" : i == 1 ? "silver" : "#cd7f32"}` : ""}">
-                        <td style="padding:15px">${i + 1}</td>
-                        <td style="padding:15px">${s.name}</td>
-                        <td style="padding:15px; color:var(--cyan)">${s.score}</td>
-                        <td style="padding:15px; font-size:0.8rem">${s.date}</td>
-                    </tr>
-                `).join("")}
-            </table>`;
+    container.innerHTML = "<table><thead><tr><th>Rank</th><th>Fighter</th><th>Score</th><th>Date</th></tr></thead><tbody></tbody></table>";
+    const body = container.querySelector("tbody");
+    scores.forEach((entry, index) => {
+      const row = body.insertRow();
+      for (const value of [index + 1, entry.name, entry.score.toLocaleString(), entry.date]) {
+        row.insertCell().textContent = String(value);
+      }
+    });
   }
 
-  // --- BATTLE ORCHESTRATION ---
   preBattleCutscene() {
-    this.screenManager.showScreen("vs");
-    document.getElementById("vs-p1").innerText = this.selectedChar.name;
-    document.getElementById("vs-p1").style.color = this.selectedChar.color;
-    document.getElementById("vs-cpu").innerText = this.cpuChar.name;
-    document.getElementById("vs-cpu").style.color = this.cpuChar.color;
-    setTimeout(() => {
-      document.getElementById("vs-p1").style.transform = "translateX(0)";
-      document.getElementById("vs-cpu").style.transform = "translateX(0)";
-    }, 50);
-    setTimeout(() => {
-      document.getElementById("vs-text").style.opacity = 1;
-    }, 400);
-    setTimeout(() => this.initBattle(), 1200);
+    if (!this.selectedChar || !this.cpuChar || this.screenManager.activeScreen === "vs") return;
+    this.showScreen("vs");
+    for (const [id, fighter] of [["vs-p1", this.selectedChar], ["vs-cpu", this.cpuChar]]) {
+      const el = byId(id);
+      el.style.setProperty("--char-color", fighter.color);
+      el.innerHTML = `${portrait(fighter)}<small>${id === "vs-p1" ? "Player" : "CPU"}</small>${fighter.name}`;
+    }
+    this.matchupTimeout = setTimeout(() => this.initBattle(), 1000);
   }
 
   initBattle() {
-    document.querySelectorAll(".proj, .particle, .trail-ghost, .ground-crack").forEach((e) => e.remove());
-    document.getElementById("screen-vs").classList.remove("active");
-    this.screenManager.showScreen("battle");
-
-    document.getElementById("p1-name").innerText = this.selectedChar.name;
-    document.getElementById("cpu-name").innerText = this.cpuChar.name;
-
-    const arena = document.getElementById("arena");
-    if (arena) {
-      arena.style.opacity = 0;
-      setTimeout(() => (arena.style.opacity = 1), 50);
-    }
-
-    const rt = document.getElementById("round-text");
-    if (rt) {
-      rt.innerText = "FIGHT!";
-      rt.style.opacity = 1;
-      rt.style.transform = "translateY(-50px)";
-      setTimeout(() => (rt.style.transform = "translateY(0)"), 50);
-      setTimeout(() => (rt.style.opacity = 0), 1500);
-    }
-
-    const endBtn = document.getElementById("end-unlimited-btn");
-    if (endBtn) endBtn.style.display = this.matchHealth === "unlimited" ? "block" : "none";
-
+    this.showScreen("battle");
+    this.hudRenderer.updateCombo(0);
+    byId("end-unlimited-btn").hidden = this.matchHealth !== "unlimited";
+    const round = byId("round-text");
+    round.textContent = "Fight!";
+    round.style.opacity = "1";
+    this.roundTimeout = setTimeout(() => { round.style.opacity = "0"; }, 850);
     engine.startBattle(this.selectedChar, this.cpuChar, this.difficulty, this.matchHealth);
   }
 
-  handleGameEnd(result, p1, cpu, timer) {
-    this.screenManager.showScreen("result");
-    const rt = document.getElementById("result-text");
-    if (result === "SURVIVAL_END") {
-      rt.innerText = "SURVIVAL OVER";
-      rt.style.color = "var(--cyan)";
-      document.getElementById("result-char").innerText = `${p1.data.name} Defeated ${engine.survivalKills || 0} Enemies!`;
-      const score = (engine.survivalKills || 0) * 2500 + Math.floor((p1.hp / p1.maxHp) * 1000);
-      this.animateScore(score);
-      this.finalizeBattle(p1, score);
-      return;
+  togglePause() {
+    if (!engine.gameActive || this.screenManager.activeScreen !== "battle") return;
+    const dialog = byId("pause-modal");
+    if (engine.togglePause()) {
+      if (!dialog.open) dialog.showModal();
+    } else {
+      if (dialog.open) dialog.close();
+      byId("screen-battle").focus();
     }
-
-    rt.innerText = result;
-    rt.style.color = result === "VICTORY" ? "var(--cyan)" : result === "DRAW" ? "var(--orange)" : "var(--pink)";
-    document.getElementById("result-char").innerText = `${result === "VICTORY" ? p1.data.name : cpu.data.name} Dominates!`;
-
-    const score = Math.floor((result === "VICTORY" ? 5000 : 0) + (p1.hp / p1.maxHp) * 5000 + timer * 100);
-    this.animateScore(score);
-    this.finalizeBattle(p1, score);
   }
 
-  finalizeBattle(p1, score) {
-    state.addShards(Math.floor(score / 100));
-    state.addScore({ name: p1.data.name, score, date: new Date().toLocaleDateString() });
-  }
-
-  animateScore(target) {
-    let curr = 0;
-    const step = Math.ceil(target / 50);
-    const el = document.getElementById("final-score");
-    const interval = setInterval(() => {
-      curr += step;
-      if (curr >= target) {
-        curr = target;
-        clearInterval(interval);
-      }
-      if (el) el.innerText = `SCORE: ${curr}`;
-    }, 20);
-  }
-
-  // --- TITLE PARTICLES ---
-  initParticles() {
-    if (!this.canvas) return;
-    this.canvas.width = window.innerWidth;
-    this.canvas.height = window.innerHeight;
-    this.particles = Array.from({ length: 50 }, () => ({
-      x: Math.random() * this.canvas.width,
-      y: Math.random() * this.canvas.height,
-      vx: (Math.random() - 0.5) * 0.5,
-      vy: (Math.random() - 0.5) * 0.5,
-      size: Math.random() * 3,
-      color: Math.random() > 0.5 ? "#f97316" : "#22d3ee",
-    }));
-  }
-
-  drawParticles() {
-    if (!this.ctx || !this.canvas) return;
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    this.particles.forEach((p) => {
-      p.x += p.vx;
-      p.y += p.vy;
-      if (p.x < 0) p.x = this.canvas.width;
-      if (p.x > this.canvas.width) p.x = 0;
-      if (p.y < 0) p.y = this.canvas.height;
-      if (p.y > this.canvas.height) p.y = 0;
-      this.ctx.fillStyle = p.color;
-      this.ctx.beginPath();
-      this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-      this.ctx.fill();
-    });
-    if (this.screenManager.activeScreen === "title") requestAnimationFrame(() => this.drawParticles());
+  handleGameEnd(result, p1, cpu, timer) {
+    this.showScreen("result");
+    const heading = byId("result-text");
+    const detail = byId("result-char");
+    const survival = result === "SURVIVAL_END";
+    heading.textContent = survival ? "Survival over" : result;
+    if (survival) {
+      const waves = engine.survivalKills;
+      detail.textContent = `${p1.data.name} cleared ${waves} ${waves === 1 ? "wave" : "waves"}.`;
+    } else if (result === "DRAW") detail.textContent = `${p1.data.name} and ${cpu.data.name} tied.`;
+    else detail.textContent = `${result === "VICTORY" ? p1.data.name : cpu.data.name} wins the match.`;
+    const damageScore = Math.round(Math.max(0, 1 - cpu.hp / cpu.maxHp) * 1000);
+    let score = damageScore;
+    if (survival) score += engine.survivalKills * 2500;
+    else if (result === "VICTORY") score += 5000 + Math.ceil(p1.hp / p1.maxHp * 3000) + Math.ceil(Math.max(0, timer)) * 50;
+    const shards = state.recordBattle({ name: p1.data.name, score, date: new Date().toLocaleDateString() });
+    byId("final-score").textContent = `${score.toLocaleString()} points`;
+    byId("shards-earned").textContent = `+ ${shards} Spirit Shards`;
   }
 }

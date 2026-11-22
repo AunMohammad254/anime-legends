@@ -1,122 +1,64 @@
 import { SCREENS } from "../../constants.js";
 
-/**
- * ScreenManager.js
- * Handles screen transitions, modals, orientation, and full-screen logic.
- */
 export class ScreenManager {
   constructor(ui) {
     this.ui = ui;
     this.activeScreen = "title";
-    this.rotatePromptDismissed = false;
   }
 
   init() {
-    this.setupResponsiveScaling();
-  }
-
-  setupResponsiveScaling() {
-    const wrapper = document.getElementById("game-wrapper");
-    if (!wrapper) return;
-
-    const scaleWrapper = () => {
-      wrapper.style.width = "100dvw";
-      wrapper.style.height = "100dvh";
-    };
-
-    const handleOrientation = () => {
-      const rotatePrompt = document.getElementById("rotate-prompt");
-      const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
-      const isPortrait = window.innerHeight > window.innerWidth;
-
-      if (!isPortrait) {
-        this.rotatePromptDismissed = false;
-      }
-
-      if (rotatePrompt) {
-        if (isTouchDevice && isPortrait && !this.rotatePromptDismissed) {
-          rotatePrompt.style.display = "flex";
-        } else {
-          rotatePrompt.style.display = "none";
-        }
-      }
-
-      this.applyBattleTouchLayout();
-    };
-
-    window.addEventListener("resize", scaleWrapper);
-    window.addEventListener("resize", handleOrientation);
-    window.addEventListener("orientationchange", handleOrientation);
-
-    scaleWrapper();
-    handleOrientation();
+    window.addEventListener("resize", () => this.applyBattleTouchLayout());
+    document.getElementById("modal-how-to-play")?.addEventListener("click", (event) => {
+      if (event.target === event.currentTarget) this.closeModal();
+    });
+    document.getElementById("pause-modal")?.addEventListener("cancel", (event) => {
+      event.preventDefault();
+      this.ui.togglePause();
+    });
+    const fullscreenButton = document.getElementById("fullscreen-btn");
+    if (fullscreenButton) fullscreenButton.hidden = !document.fullscreenEnabled && !document.webkitFullscreenEnabled;
   }
 
   showScreen(id) {
-    SCREENS.forEach((s) => {
-      const el = document.getElementById(`screen-${s}`);
-      if (el) el.classList.remove("active");
-    });
     const target = document.getElementById(`screen-${id}`);
-    if (target) target.classList.add("active");
-    
+    if (!target || !SCREENS.includes(id)) return;
     this.activeScreen = id;
+    SCREENS.forEach((screen) => {
+      document.getElementById(`screen-${screen}`)?.classList.toggle("active", screen === id);
+    });
     this.applyBattleTouchLayout();
+    target.scrollTop = 0;
+    const heading = id === "battle" ? target : target.querySelector("h1, h2") || target;
+    heading.tabIndex = -1;
+    heading.focus({ preventScroll: true });
   }
 
   applyBattleTouchLayout() {
-    const battleScreen = document.getElementById("screen-battle");
-    const touchEl = document.getElementById("touch-controls");
-    const portraitEl = document.getElementById("touch-controls-portrait");
-    if (!battleScreen || !touchEl || !portraitEl) return;
-
-    const isActive = this.activeScreen === "battle";
-    const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    const isPortrait = window.innerHeight > window.innerWidth;
-
-    battleScreen.classList.remove("portrait-mode");
-    touchEl.classList.remove("active");
-
-    if (isActive && isTouch) {
-      if (isPortrait) {
-        battleScreen.classList.add("portrait-mode");
-      } else {
-        touchEl.classList.add("active");
-      }
-    }
+    const isTouch = navigator.maxTouchPoints > 0 || window.matchMedia?.("(any-pointer: coarse)").matches;
+    const showControls = this.activeScreen === "battle" && isTouch;
+    const portrait = window.innerHeight > window.innerWidth;
+    document.getElementById("screen-battle")?.classList.toggle("portrait-mode", Boolean(showControls && portrait));
+    document.getElementById("touch-controls")?.classList.toggle("active", Boolean(showControls && !portrait));
   }
 
   showModal(id) {
-    const el = document.getElementById(`modal-${id}`);
-    if (el) el.style.display = "flex";
+    document.getElementById(`modal-${id}`)?.showModal();
   }
 
-  closeModal(e) {
-    if (e && e.target.classList.contains("pause-overlay")) {
-      e.target.style.display = "none";
-    } else if (!e) {
-      document.querySelectorAll(".pause-overlay").forEach((m) => {
-        if (m.id.startsWith("modal")) m.style.display = "none";
-      });
-    }
+  closeModal() {
+    document.getElementById("modal-how-to-play")?.close();
   }
 
-  toggleFullscreen() {
-    const doc = document.documentElement;
-    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-      if (doc.requestFullscreen) doc.requestFullscreen();
-      else if (doc.webkitRequestFullscreen) doc.webkitRequestFullscreen();
-    } else {
-      if (document.exitFullscreen) document.exitFullscreen();
-      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-    }
-  }
-
-  dismissRotatePrompt() {
-    this.rotatePromptDismissed = true;
-    const rotatePrompt = document.getElementById("rotate-prompt");
-    if (rotatePrompt) {
-      rotatePrompt.style.display = "none";
+  async toggleFullscreen() {
+    try {
+      const doc = document.documentElement;
+      if (document.fullscreenElement || document.webkitFullscreenElement) {
+        if (document.exitFullscreen) await document.exitFullscreen();
+        else document.webkitExitFullscreen?.();
+      } else if (doc.requestFullscreen) await doc.requestFullscreen();
+      else doc.webkitRequestFullscreen?.();
+    } catch {
+      this.ui.showToast("Fullscreen is unavailable in this browser.");
     }
   }
 }

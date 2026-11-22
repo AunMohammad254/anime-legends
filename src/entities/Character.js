@@ -1,32 +1,31 @@
 import { WEAPON_SKINS } from "../../constants.js";
+import "./fighters.css";
 
-/**
- * Character.js
- * Comprehensive character entity representing players and NPCs.
- */
+export function createFighterHTML(data) {
+  return `<div class="fighter-inner fighter-${data.id}" aria-hidden="true" style="color:${data.color}">
+    <div class="sprite-part s-arm-l"></div><div class="sprite-part s-leg-l"></div>
+    <div class="sprite-part s-leg-r"></div><div class="sprite-part s-body"></div>
+    <div class="sprite-part s-head"></div><div class="sprite-part s-arm-r"></div>
+  </div>`;
+}
+
 export class Character {
   constructor(data, isPlayer, engine, options = {}) {
     this.data = data;
     this.isPlayer = isPlayer;
     this.engine = engine;
-    this.x = isPlayer
-      ? engine.arenaEl.offsetWidth * 0.2
-      : engine.arenaEl.offsetWidth * 0.8;
+    this.x = engine.arenaEl.offsetWidth * (isPlayer ? 0.2 : 0.8);
     this.y = 0;
     this.vx = 0;
     this.vy = 0;
 
-    this.maxHp = options.maxHp || engine.matchHealth;
+    this.maxHp = options.maxHp ?? engine.matchHealth;
     this.hp = this.maxHp;
-    this.power = options.startPower || 0;
-    this.spdMult = options.spdMult || 1;
     this.maxPower = 4;
-
-    this.skinId = options.skinId || "default";
-    const skin = WEAPON_SKINS.find((s) => s.id === this.skinId);
-    this.weaponColor = skin?.color || null;
-    if (!isPlayer) this.weaponColor = "#ff0000"; // Ensure CPU projectiles/weapons are red
-
+    this.power = options.startPower ?? 0;
+    this.spdMult = (options.spdMult ?? 1) * (1 + ((data.spd ?? 6) - 6) * 0.045);
+    this.skinId = options.skinId ?? "default";
+    this.weaponColor = WEAPON_SKINS.find((skin) => skin.id === this.skinId)?.color;
     this.state = `idle_${data.id}`;
     this.dir = isPlayer ? 1 : -1;
     this.cooldowns = { attack: 0, dash: 0, special: 0, hurt: 0, ult: 0, actionLock: 0 };
@@ -36,227 +35,185 @@ export class Character {
     this.dashActive = 0;
     this.weapon = null;
     this.ultCharge = 0;
-    this.history = [];
     this.opacity = 1;
     this.pendingActions = [];
-
+    this.recoveryDelay = 0;
+    this.poisonTime = 0;
     this.el = document.getElementById(isPlayer ? "p1-sprite" : "cpu-sprite");
 
-    const displayColor = isPlayer ? data.color : "#ff0000"; // Make enemy character Red
     if (this.el) {
-      if (!isPlayer) {
-        this.el.style.filter = "drop-shadow(0 0 15px #ff0000) drop-shadow(0 0 5px #ff0000)";
-      } else {
-        this.el.style.filter = `drop-shadow(0 0 10px ${data.color})`;
-      }
-      this.el.innerHTML = this.createFighterHTML(displayColor) + '<div class="aura"></div>';
-      this.el.style.color = displayColor;
+      this.el.style.color = data.color;
+      this.el.style.filter = `drop-shadow(0 0 7px ${data.color}80)`;
+      this.el.innerHTML = createFighterHTML(data) + '<div class="aura"></div>';
       this.auraEl = this.el.querySelector(".aura");
-      if (this.auraEl) {
-        this.auraEl.style.background = `radial-gradient(circle, ${displayColor} 0%, transparent 70%)`;
-      }
+      this.auraEl.style.background = `radial-gradient(circle, ${data.color}, transparent 70%)`;
+      this.render();
     }
-  }
-
-  createFighterHTML(color) {
-    return `<div class="fighter-inner" style="color: ${color}"><div class="sprite-part s-head"></div><div class="sprite-part s-body"></div><div class="sprite-part s-arm-l"></div><div class="sprite-part s-arm-r"></div><div class="sprite-part s-leg-l"></div><div class="sprite-part s-leg-r"></div></div>`;
   }
 
   update(dt, opponent) {
-    if (this.hp <= 0 && this.state !== "ko") {
-      this.setState("ko");
-      this.engine.playSound("ko");
-    }
-    if (this.state === "ko") {
-      if (this.y > 0) {
-        this.vy += 0.6;
-        this.y -= this.vy;
-        if (this.y < 0) this.y = 0;
-      }
-      this.render();
-      return;
-    }
+    if (this.state === "ko") return;
 
-    this.vy += 0.6;
-    this.y -= this.vy;
-    if (this.y <= 0) {
-      if (this.y < 0 && this.vy > 10) this.setState(`idle_${this.data.id}`); // land
-      this.y = 0;
-      this.vy = 0;
+    const arena = this.engine.arenaEl;
+    const gravity = this.data.id === "aero" ? 0.53 : 0.6;
+    this.vy += gravity;
+    this.y = Math.max(0, this.y - this.vy);
+    const ceiling = Math.max(50, arena.offsetHeight * 0.75 - 160);
+    if (this.y > ceiling) {
+      this.y = ceiling;
+      this.vy = Math.max(this.vy, 0);
+    }
+    if (!this.y) this.vy = 0;
+    if (this.y > 0 && this.cooldowns.actionLock <= 0 && this.cooldowns.hurt <= 0) {
+      this.setState(this.vy < 0 ? "jump_rise" : "jump_fall");
     }
 
     this.x += this.vx;
     this.vx *= 0.85;
-    if (this.x < 50) this.x = 50;
-    if (this.engine.arenaEl && this.x > this.engine.arenaEl.offsetWidth - 50)
-      this.x = this.engine.arenaEl.offsetWidth - 50;
-
-    const dist = Math.abs(this.x - opponent.x);
-    if (dist < 80 && this.y === 0 && opponent.y === 0) {
-      const push = (80 - dist) * 0.5;
-      this.x += this.x < opponent.x ? -push : push;
+    const gap = Math.abs(this.x - opponent.x);
+    if (gap < 80 && Math.abs(this.y - opponent.y) < 40) {
+      const direction = this.x === opponent.x ? (this.isPlayer ? -1 : 1) : Math.sign(this.x - opponent.x);
+      this.x += direction * (80 - gap) * 0.5;
     }
+    this.x = Math.max(45, Math.min(arena.offsetWidth - 45, this.x));
 
-    Object.keys(this.cooldowns).forEach((k) => {
-      if (this.cooldowns[k] > 0) this.cooldowns[k] -= dt;
-    });
-    if (this.dashActive > 0) this.dashActive -= dt;
+    for (const key in this.cooldowns) this.cooldowns[key] = Math.max(0, this.cooldowns[key] - dt);
+    this.dashActive = Math.max(0, this.dashActive - dt);
     if (this.comboTimer > 0) {
       this.comboTimer -= dt;
       if (this.comboTimer <= 0) this.combo = 0;
     }
 
-    this.pendingActions = this.pendingActions.filter((a) => {
-      a.delay -= dt;
-      if (a.delay <= 0) {
-        a.execute();
-        return false;
-      }
-      return true;
+    // Move due callbacks out of the queue first so a callback can schedule its next strike.
+    const due = [];
+    this.pendingActions = this.pendingActions.filter((action) => {
+      action.delay -= dt;
+      if (action.delay > 0) return true;
+      due.push(action);
+      return false;
     });
+    for (const action of due) {
+      if (this.hp <= 0 || opponent.hp <= 0) break;
+      action.execute();
+    }
 
     if (this.weapon) {
       this.weapon.dur -= dt / 1000;
       if (this.weapon.dur <= 0 || this.weapon.hits <= 0) {
-        this.engine.spawnParticles(this.x, 100, 10, this.weaponColor || this.weapon.color, 40, 500);
+        this.engine.spawnParticles(this.x, this.y + 90, 8, this.weaponColor || this.weapon.color, 40, 400);
         this.weapon = null;
-        const wEl = this.el?.querySelector(".equipped-weapon");
-        if (wEl) wEl.remove();
-      } else if (this.weapon.id === "orb") {
-        if (dist < 80 && opponent.dashActive <= 0 && !opponent.isBlocking) {
-          opponent.takeDamage((5 * dt) / 1000, 0, true); // True for chip/passive dmg
-        }
+        this.el?.querySelector(".equipped-weapon")?.remove();
+      } else if (this.weapon.id === "orb" && gap <= 100 && Math.abs(this.y - opponent.y) < 80 && opponent.dashActive <= 0 && !opponent.isBlocking) {
+        opponent.takeDamage(5 * dt / 1000, 0, true);
       }
     }
-
-    // Character Passives
-    this.applyPassives(dt, opponent, dist);
-
+    this.applyPassives(dt, opponent, gap);
     if (this.auraEl) {
-      const pRatio = this.power / this.maxPower;
-      this.auraEl.style.transform = `scale(${1 + pRatio})`;
-      this.auraEl.style.opacity = 0.15 + pRatio * 0.25;
+      const ratio = this.power / this.maxPower;
+      this.auraEl.style.transform = `scale(${1 + ratio})`;
+      this.auraEl.style.opacity = 0.10 + ratio * 0.20;
     }
-
-    this.history.unshift({ x: this.x, y: this.y });
-    if (this.history.length > 5) this.history.pop();
-    if (Math.abs(this.vx) > 5 || this.dashActive > 0) {
-      this.engine.trails.push({
-        x: this.x,
-        y: this.y,
-        dir: this.dir,
-        color: this.data.color,
-        life: 1,
-      });
+    if (this.dashActive > 0) {
+      this.engine.trails.push({ x: this.x, y: this.y, dir: this.dir, data: this.data, life: 1 });
     }
-
-    this.opacity = Math.min(1, this.opacity + dt / 1000);
+    this.opacity = this.data.id === "shadow" && this.dashActive > 0 ? 0.35 : Math.min(1, this.opacity + dt / 500);
     this.render();
   }
 
-  applyPassives(dt, opponent, dist) {
-    if (this.data.id === "blaze" && (Math.abs(this.vx) > 1 || Math.abs(this.vy) > 1) && Math.random() < 0.2) {
-      this.spawnEmber(this.x, this.y);
-    } else if (this.data.id === "storm" && dist < 100) {
-      opponent.takeDamage((1 * dt) / 1000, 0, true);
-      if (Math.random() < 0.1)
-        this.engine.spawnParticles(this.x + (opponent.x - this.x) / 2, 100, 1, "#22d3ee", 10, 100);
+  applyPassives(dt, opponent, gap) {
+    this.recoveryDelay = Math.max(0, this.recoveryDelay - dt);
+    if (this.poisonTime > 0) {
+      const elapsed = Math.min(this.poisonTime, dt);
+      this.poisonTime -= elapsed;
+      this.takeDamage(2 * elapsed / 1000, 0, true);
+    }
+    if (this.hp <= 0 || opponent.hp <= 0) return;
+    const near = gap <= 105 && Math.abs(this.y - opponent.y) < 85;
+    switch (this.data.id) {
+      case "blaze":
+        if (Math.abs(this.vx) > 2 || this.dashActive > 0) {
+          if (Math.random() < 0.22) this.engine.spawnParticles(this.x, this.y + 10, 1, this.data.color, 18, 350);
+          if (near && !opponent.isBlocking) opponent.takeDamage(1.5 * dt / 1000, 0, true);
+        }
+        break;
+      case "storm":
+        if (near && !opponent.isBlocking) {
+          opponent.takeDamage(dt / 1000, 0, true);
+          if (Math.random() < 0.1) this.engine.spawnParticles((this.x + opponent.x) / 2, this.y + 80, 1, this.data.color, 16, 120);
+        }
+        break;
+      case "aqua":
+        if (this.recoveryDelay === 0) this.hp = Math.min(this.maxHp, this.hp + dt / 1000);
+        break;
     }
   }
 
   render() {
     if (!this.el) return;
-    this.el.className = `fighter ${this.state} ${this.cooldowns.hurt > 0 ? "hurt" : ""}`;
+    this.el.className = `fighter ${this.state}${this.cooldowns.hurt > 0 && this.hp > 0 ? " hurt" : ""}`;
     this.el.style.left = `${this.x - 50}px`;
-    this.el.style.bottom = `${25 + this.y / 5}%`;
+    this.el.style.bottom = `calc(25% + ${this.y}px)`;
     this.el.style.transform = `scaleX(${this.dir})`;
     this.el.style.opacity = this.opacity;
   }
 
-  setState(s) {
-    if (this.state !== "ko") this.state = s;
+  setState(state) {
+    if (this.state !== "ko") this.state = state;
   }
 
-  takeDamage(dmg, knockback = 0, isPassive = false) {
-    if (this.dashActive > 0 && !isPassive) return;
-
-    let finalDmg = dmg;
-
+  takeDamage(damage, knockback = 0, isPassive = false, blocked = this.isBlocking) {
+    if (this.hp <= 0 || (this.dashActive > 0 && !isPassive)) return false;
+    const attacker = this.isPlayer ? this.engine.cpu : this.engine.p1;
+    let amount = damage;
     if (!isPassive) {
-      if (this.isPlayer) {
-        if (this.engine.difficulty === "easy") finalDmg *= 0.7;
-        if (this.engine.difficulty === "hard") finalDmg *= 1.3;
-        if (this.engine.difficulty === "expert") finalDmg *= 1.8;
-        if (this.engine.matchHealth === "unlimited") finalDmg *= 1 + (this.engine.survivalKills || 0) * 0.4;
+      const difficulty = this.engine.difficulty;
+      const strength = this.isPlayer
+        ? { easy: 0.7, normal: 1, hard: 1.3, expert: 1.8 }
+        : { easy: 1.3, normal: 1, hard: 0.8, expert: 0.6 };
+      amount *= (strength[difficulty] ?? 1) * (1 - ((this.data.def ?? 5) - 5) * 0.035);
+      if (this.data.id === "terra" && !this.y) amount *= 0.93;
+      if (this.data.id === "iron") knockback *= 0.6;
+      if (blocked) {
+        amount *= this.data.id === "frost" ? 0.18 : 0.3;
+        knockback *= 0.5;
+        this.engine.playSound("block");
+        this.engine.spawnParticles(this.x, this.y + 80, 5, "#fff", 30, 300);
+        this.spawnDmg(this.x, this.y + 120, "BLOCK", "#cbe6fa");
       } else {
-        if (this.engine.difficulty === "easy") finalDmg *= 1.3;
-        if (this.engine.difficulty === "hard") finalDmg *= 0.8;
-        if (this.engine.difficulty === "expert") finalDmg *= 0.6;
+        this.cooldowns.hurt = 250;
+        const heavy = amount > 15;
+        this.engine.playSound("light");
+        this.engine.spawnParticles(this.x, this.y + 80, heavy ? 18 : 7, this.data.color, heavy ? 100 : 40, heavy ? 450 : 320);
+        this.spawnDmg(this.x, this.y + 100, Math.max(1, Math.round(amount)), heavy ? "#ffae66" : "#fff");
+        knockback *= heavy ? 1.8 : 1.2;
+        if (attacker?.data.id === "venom") this.poisonTime = 2000;
+        if (attacker?.data.id === "soul") attacker.power = Math.min(attacker.maxPower, attacker.power + 0.12);
       }
+      this.power = Math.min(this.maxPower, this.power + 0.2);
     }
-
-    let isBlocked = this.isBlocking && !isPassive;
-
-    if (isBlocked) {
-      finalDmg *= 0.3;
-      knockback *= 0.5;
-      this.engine.playSound("block");
-      this.engine.spawnParticles(this.x, this.y + 80, 5, "#fff", 30, 300);
-      this.spawnDmg(this.x, this.y + 120, "BLOCK", "#888");
-    } else if (!isPassive) {
-      this.cooldowns.hurt = 250;
-      this.engine.playSound("light");
-      const isHeavy = finalDmg > 15;
-      this.engine.spawnParticles(this.x, this.y + 80, isHeavy ? 25 : 8, this.data.color, isHeavy ? 120 : 40, isHeavy ? 600 : 400);
-      this.spawnDmg(this.x, this.y + 100, Math.floor(finalDmg), isHeavy ? "#f97316" : "#fff");
-
-      knockback *= isHeavy ? 1.8 : 1.2;
-      if (isHeavy && this.engine.onShake) this.engine.onShake(12);
-    }
-
-    this.hp = Math.max(0, this.hp - finalDmg);
+    this.recoveryDelay = 3000;
+    this.hp = Math.max(0, this.hp - amount);
     this.vx += knockback;
-    if (!isPassive) this.power = Math.min(this.maxPower, this.power + 0.2);
+    if (this.hp > 0) return false;
 
-    if (this.hp < 25 && Math.random() < 0.3 && !isPassive) {
-      const c = document.createElement("div");
-      c.className = "ground-crack";
-      c.style.left = `${this.x - 15}px`;
-      c.style.bottom = `25%`;
-      this.engine.arenaEl.appendChild(c);
-    }
-    if (this.hp <= 0 && this.state !== "ko") this.engine.triggerKO(this);
-  }
-
-  spawnEmber(x, y) {
-    if (!this.engine.particlePool) return;
-    for (let i = 0; i < this.engine.particlePool.length; i++) {
-      const p = this.engine.particlePool[i];
-      if (!p.active) {
-        p.active = true;
-        p.x = x;
-        p.y = y;
-        p.vx = (Math.random() - 0.5) * 2;
-        p.vy = Math.random() * 2;
-        p.life = 1500 / 16;
-        p.color = "#f97316";
-        p.size = 6;
-        p.noGrav = true;
-        break;
-      }
-    }
+    this.setState("ko");
+    this.pendingActions.length = 0;
+    this.isBlocking = false;
+    this.render();
+    this.engine.playSound("ko");
+    this.engine.triggerKO(this);
+    return true;
   }
 
   spawnDmg(x, y, text, color = "#fff") {
-    if (!this.engine.arenaEl) return;
     const el = document.createElement("div");
     el.className = "damage-num";
-    el.innerText = text;
+    el.textContent = text;
     el.style.left = `${x}px`;
-    el.style.bottom = `${25 + y / 5}%`;
+    el.style.bottom = `calc(25% + ${y}px)`;
     el.style.color = color;
-    el.style.animation = text === "BLOCK" ? "dmg-float-up 0.6s forwards" : color === "#f97316" ? "dmg-heavy 0.8s forwards" : "dmg-float-up 0.8s forwards";
+    el.style.animation = "dmg-float-up 0.75s forwards";
     this.engine.arenaEl.appendChild(el);
-    setTimeout(() => el.remove(), 1000);
+    el.addEventListener("animationend", () => el.remove(), { once: true });
   }
 }

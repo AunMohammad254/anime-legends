@@ -1,85 +1,74 @@
-/**
- * Projectile.js
- * Handles individual projectile behavior and DOM representation.
- */
 export class Projectile {
   constructor(config, engine) {
-    this.x = config.x;
-    this.y = config.y || 80;
-    this.vx = config.vx || 0;
-    this.vy = config.vy || 0;
-    this.owner = config.owner;
-    this.color = config.color;
-    this.dmg = config.dmg || 10;
-    this.type = config.type || "default";
-    this.pierce = config.pierce || false;
-    this.isClone = config.isClone || false;
     this.engine = engine;
+    this.x = config.x;
+    this.y = config.y ?? 80;
+    this.vx = config.vx ?? 0;
+    this.vy = config.vy ?? 0;
+    this.owner = config.owner;
+    this.color = config.color ?? this.owner.data.color;
+    this.dmg = config.dmg ?? 10;
+    this.type = config.type ?? "default";
+    this.pierce = config.pierce ?? false;
+    this.isClone = config.isClone ?? false;
+    this.onHit = config.onHit;
+    this.life = 4000;
     this.active = true;
 
     this.el = document.createElement("div");
     this.el.className = "proj";
+    this.el.style.color = this.color;
+    if (this.isClone) {
+      this.el.classList.add("shadow-double");
+    } else if (this.type === "arrow") {
+      this.el.textContent = "➜";
+      this.el.classList.add("arrow-shot");
+    } else {
+      this.el.classList.add("spirit-shot");
+    }
     this.render();
     this.engine.arenaEl.appendChild(this.el);
   }
 
   update(dt) {
+    if (!this.active) return;
+    this.life -= dt;
     this.x += this.vx;
-    if (this.vy) this.y += this.vy;
+    this.y += this.vy;
+    const arena = this.engine.arenaEl;
+    if (this.life <= 0 || this.x < -100 || this.x > arena.offsetWidth + 100 || this.y < -100 || this.y > arena.offsetHeight + 100) {
+      this.destroy();
+      return;
+    }
 
     const target = this.owner.isPlayer ? this.engine.cpu : this.engine.p1;
-
-    // Reflection Logic (Gauntlet)
-    if (
-      target.weapon &&
-      target.weapon.id === "gauntlet" &&
-      target.isBlocking &&
-      Math.abs(this.x - target.x) < 80
-    ) {
-      this.vx *= -1;
+    const aligned = this.isClone || Math.abs(this.y - (target.y + 80)) < 86;
+    const gap = Math.abs(this.x - target.x);
+    if (target.hp > 0 && aligned && gap < 75 && target.weapon?.id === "gauntlet" && target.isBlocking) {
       this.owner = target;
+      // Aim back at the shooter even if the projectile was almost vertical.
+      this.vx = (target.isPlayer ? this.engine.cpu.x - target.x : this.engine.p1.x - target.x) >= 0
+        ? Math.max(6, Math.abs(this.vx))
+        : -Math.max(6, Math.abs(this.vx));
+      this.x = target.x + Math.sign(this.vx) * 45;
       this.engine.playSound("block");
       this.engine.spawnParticles(target.x, target.y + 80, 5, target.weaponColor || "#22d3ee", 30, 200);
-      return;
-    }
-
-    // Collision Logic
-    if (Math.abs(this.x - target.x) < 50 && (this.isClone || Math.abs(this.y - (target.y + 80)) < 100)) {
-      if (!this.pierce && target.isBlocking) {
-        target.takeDamage(this.dmg * 0.5, this.vx * 0.5);
-        this.destroy();
-        return;
-      }
-      target.takeDamage(this.dmg, this.vx * 0.5);
-      if (this.type === "fireball") this.engine.spawnParticles(target.x, target.y + 80, 15, this.color, 60, 400);
-      if (this.type === "arrow") {
-        const arrow = document.createElement("div");
-        arrow.innerHTML = "➔";
-        arrow.style = `position:absolute; left: ${this.vx > 0 ? 10 : 60}px; top: ${40 + Math.random() * 40}px; font-size:24px; color:${this.color}; transform:rotate(${this.vx > 0 ? 15 : 165}deg); z-index: 60; filter: drop-shadow(0 0 5px ${this.color});`;
-        target.el.appendChild(arrow);
-        setTimeout(() => arrow.remove(), 2000);
-      }
+    } else if (target.hp > 0 && aligned && gap < 50 && target.dashActive <= 0) {
+      const blocked = target.isBlocking;
+      target.takeDamage(this.dmg, this.vx * 0.5, false, blocked && !this.pierce);
+      if (!blocked && target.hp > 0) this.onHit?.(target, this.owner);
+      this.engine.spawnParticles(this.x, this.y, 8, this.color, 45, 250);
       this.destroy();
       return;
     }
-
-    // Bounds Check
-    if (this.x < -100 || this.x > this.engine.arenaEl.offsetWidth + 100) {
-      this.destroy();
-      return;
-    }
-
     this.render();
   }
 
   render() {
-    if (this.type === "arrow") {
-      this.el.innerHTML = "➔";
-      this.el.style = `position:absolute; left:${this.x}px; bottom:${25 + this.y / 5}%; color:${this.color}; font-size:40px; filter: drop-shadow(0 0 10px ${this.color}); transform:rotate(${this.vx > 0 ? 0 : 180}deg); display:flex; align-items:center; justify-content:center; margin-bottom:-20px;`;
-    } else if (this.isClone) {
-      this.el.style = `left:${this.x - 50}px; bottom:${25}%; width:100px; height:160px; background:${this.color}; opacity:0.5; clip-path: polygon(30% 0, 70% 0, 100% 100%, 0 100%);`;
-    } else {
-      this.el.style = `left:${this.x}px; bottom:${25 + this.y / 5}%; width:20px; height:2px; background:#fff; box-shadow: 0 0 10px ${this.color}, 0 0 20px ${this.color}; transform:rotate(${Math.atan2(this.vy || 0, this.vx)}rad);`;
+    this.el.style.left = `${this.x}px`;
+    this.el.style.bottom = `calc(25% + ${this.y}px)`;
+    if (!this.isClone) {
+      this.el.style.transform = `translate(-50%, 50%) rotate(${Math.atan2(-this.vy, this.vx)}rad)`;
     }
   }
 
