@@ -8,21 +8,22 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "test:browser": "playwright test"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@vitest/coverage-v8": "^1.6.1",
-    "@vitest/ui": "^1.6.1",
+    "@playwright/test": "^1.65.1",
+    "@vitest/coverage-v8": "^5.1.1",
+    "@vitest/ui": "^5.1.1",
     "eslint": "^10.4.0",
-    "jsdom": "^23.2.0",
+    "jsdom": "^31.0.1",
     "prettier": "^3.8.3",
-    "terser": "^5.47.1",
-    "vite": "^5.0.0",
-    "vitest": "^1.6.1"
+    "vite": "^8.3.8",
+    "vitest": "^5.1.1"
   },
-  "dependencies": {
-    "@esbuild/win32-x64": "0.21.5",
-    "esbuild": "0.21.5"
+  "private": true,
+  "engines": {
+    "node": "^24.15.0"
   }
 }

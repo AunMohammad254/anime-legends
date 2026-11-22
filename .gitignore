@@ -132,4 +132,7 @@ coverage/
 PROJECT_STATUS_REPORT.md
 ui_architecture_graphify.md
 docs
-package-lock.json
+
+# Browser test results
+/test-results/
+/playwright-report/

@@ -1,295 +1,82 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Anime Legends - Next-Gen 3D Combat</title>
-    <link rel="icon" type="image/png" href="images/logo.png" />
-
-    <!-- SEO Meta Tags -->
-    <meta
-      name="description"
-      content="Enter a next-generation 3D anime fighting universe. Train your warrior, unlock powers, and battle in cinematic arenas. Download Anime Legends now."
-    />
-    <meta
-      name="keywords"
-      content="anime, fighting game, 3D combat, multiplayer, open world, anime legends"
-    />
-    <meta name="author" content="Anime Legends Studio" />
-    <meta property="og:title" content="Anime Legends - Next-Gen 3D Combat" />
-    <meta
-      property="og:description"
-      content="Enter a next-generation 3D anime fighting universe. Train your warrior, unlock powers, and battle in cinematic arenas."
-    />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0a121b" />
+    <meta name="description" content="Play Anime Legends, a free single-player arcade fighter in your browser. Master ten elemental fighters with keyboard or touch controls." />
+    <meta property="og:title" content="Anime Legends | Elemental arcade fighter" />
+    <meta property="og:description" content="Face a CPU rival, charge your ultimate, and unlock ten elemental fighters. Play in your browser." />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://animelegends.com" />
-    <meta
-      property="og:image"
-      content="https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1200&auto=format&fit=crop"
-    />
-
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Anime Legends | Elemental arcade fighter</title>
+    <link rel="icon" type="image/png" href="./media/arena-icon.png" />
+    <link rel="stylesheet" href="./landing.css" />
   </head>
-  <body class="min-h-screen bg-black text-white font-sans overflow-x-hidden">
-    <!-- Hero Section -->
-    <section
-      class="relative h-screen flex flex-col items-center justify-center text-center px-6 bg-gradient-to-b from-black via-purple-950 to-black"
-    >
-      <div
-        class="absolute inset-0 opacity-20 bg-[url('https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920&auto=format&fit=crop')] bg-cover bg-center"
-      ></div>
-
-      <div class="relative z-10 max-w-4xl">
-        <h1
-          class="text-6xl md:text-8xl font-extrabold bg-gradient-to-r from-orange-400 via-pink-500 to-cyan-400 bg-clip-text text-transparent animate-pulse"
-        >
-          ANIME LEGENDS
-        </h1>
-
-        <p class="mt-6 text-lg md:text-2xl text-gray-300 leading-relaxed">
-          Enter a next-generation 3D anime fighting universe inspired by
-          legendary anime worlds. Train your warrior, unlock powers, and battle
-          in cinematic arenas.
-        </p>
-
-        <div class="mt-10 flex gap-4 justify-center flex-wrap">
-          <a
-            href="game.html"
-            class="px-8 py-4 rounded-2xl bg-orange-500 hover:bg-orange-600 transition text-xl font-bold shadow-2xl inline-block"
-          >
-            Play Demo
-          </a>
-
-          <button
-            onclick="openTrailerModal()"
-            class="px-8 py-4 rounded-2xl border border-purple-500 hover:bg-purple-700/30 transition text-xl font-bold"
-          >
-            Watch Trailer
-          </button>
-        </div>
+  <body>
+    <a class="skip" href="#main">Skip to game</a>
+    <header class="masthead">
+      <div class="wrap masthead-inner">
+        <a class="brand" href="./index.html" aria-label="Anime Legends home"><span class="emblem" aria-hidden="true"></span> Anime Legends</a>
+        <nav aria-label="Main">
+          <a class="guide-link" href="#controls">Controls</a>
+          <a class="nav-play" href="./game.html">Play now <span aria-hidden="true">→</span></a>
+        </nav>
       </div>
-    </section>
+    </header>
 
-    <!-- Game Features -->
-    <section class="py-24 px-6 bg-gradient-to-b from-black to-gray-950">
-      <h2 class="text-5xl font-bold text-center mb-16">Game Features</h2>
-
-      <div class="grid md:grid-cols-3 gap-8 max-w-7xl mx-auto">
-        <div
-          class="bg-white/5 backdrop-blur-lg rounded-3xl p-8 border border-white/10 hover:scale-105 transition duration-300 shadow-2xl"
-        >
-          <h3 class="text-3xl font-bold mb-4 text-orange-400">3D Open World</h3>
-          <p class="text-gray-300 leading-relaxed">
-            Explore giant anime-inspired cities, forests, mountains, and battle
-            arenas.
-          </p>
-        </div>
-        <div
-          class="bg-white/5 backdrop-blur-lg rounded-3xl p-8 border border-white/10 hover:scale-105 transition duration-300 shadow-2xl"
-        >
-          <h3 class="text-3xl font-bold mb-4 text-orange-400">
-            Power Transformations
-          </h3>
-          <p class="text-gray-300 leading-relaxed">
-            Unlock ultimate forms, aura powers, energy attacks, and combo
-            skills.
-          </p>
-        </div>
-        <div
-          class="bg-white/5 backdrop-blur-lg rounded-3xl p-8 border border-white/10 hover:scale-105 transition duration-300 shadow-2xl"
-        >
-          <h3 class="text-3xl font-bold mb-4 text-orange-400">
-            Multiplayer Battles
-          </h3>
-          <p class="text-gray-300 leading-relaxed">
-            Fight online against players worldwide in cinematic anime combat.
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <!-- Character Showcase -->
-    <section class="py-24 px-6 bg-black">
-      <h2 class="text-5xl font-bold text-center mb-16">Legendary Fighters</h2>
-
-      <div class="grid md:grid-cols-3 gap-10 max-w-7xl mx-auto">
-        <div
-          class="rounded-3xl overflow-hidden border border-white/10 bg-white/5 hover:scale-105 transition duration-300"
-        >
-          <img
-            src="https://images.unsplash.com/photo-1542751110-97427bbecf20?q=80&w=1200&auto=format&fit=crop"
-            alt="Blaze Warrior"
-            loading="lazy"
-            class="w-full h-80 object-cover"
-          />
-          <div class="p-6">
-            <h3 class="text-3xl font-bold text-cyan-400">Blaze Warrior</h3>
-            <p class="mt-3 text-gray-300">
-              Master unique combat powers and devastating ultimate attacks.
-            </p>
+    <main id="main">
+      <section class="hero" aria-labelledby="game-title">
+        <div class="wrap hero-inner">
+          <div class="hero-art" aria-hidden="true">
+            <img src="./media/arena-cover.webp" alt="" width="1024" height="665" fetchpriority="high" />
+          </div>
+          <div class="hero-copy">
+            <p class="genre">Single-player arcade fighter</p>
+            <h1 id="game-title">Anime <span>Legends</span></h1>
+            <p class="intro">Face a CPU rival as Blaze Warrior. Land combos, charge your ultimate, and earn Spirit Shards to unlock nine more fighters.</p>
+            <div class="actions">
+              <a class="play" href="./game.html">Enter the arena <span aria-hidden="true">→</span></a>
+              <button class="preview" type="button" id="watch" aria-haspopup="dialog"><span class="play-circle" aria-hidden="true"></span> Watch gameplay</button>
+            </div>
           </div>
         </div>
-        <div
-          class="rounded-3xl overflow-hidden border border-white/10 bg-white/5 hover:scale-105 transition duration-300"
-        >
-          <img
-            src="https://images.unsplash.com/photo-1511884642898-4c92249e20b6?q=80&w=1200&auto=format&fit=crop"
-            alt="Shadow Ninja"
-            loading="lazy"
-            class="w-full h-80 object-cover"
-          />
-          <div class="p-6">
-            <h3 class="text-3xl font-bold text-cyan-400">Shadow Ninja</h3>
-            <p class="mt-3 text-gray-300">
-              Master unique combat powers and devastating ultimate attacks.
-            </p>
+      </section>
+
+      <section class="guide" id="controls" aria-labelledby="guide-title">
+        <div class="wrap guide-inner">
+          <div class="guide-heading">
+            <h2 id="guide-title">Fight controls</h2>
+            <p>Use your keyboard on desktop. On touchscreens, steer with the virtual stick and tap the action buttons.</p>
           </div>
+          <table>
+            <caption class="visually-hidden">Keyboard and touchscreen controls</caption>
+            <thead><tr><th scope="col">Action</th><th scope="col">Keyboard</th><th scope="col">Touch</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Move / jump</th><td><kbd aria-label="Left arrow">←</kbd> <kbd aria-label="Right arrow">→</kbd> <kbd aria-label="Up arrow">↑</kbd></td><td>Joystick</td></tr>
+              <tr><th scope="row">Light / heavy attack</th><td><kbd>Z</kbd> / <kbd>X</kbd></td><td>Light / Heavy</td></tr>
+              <tr><th scope="row">Block</th><td>Hold <kbd>C</kbd></td><td>Hold Block</td></tr>
+              <tr><th scope="row">Dash</th><td><kbd>Space</kbd></td><td>Dash</td></tr>
+              <tr><th scope="row">Special <small>1 orb</small></th><td>Tap <kbd>V</kbd></td><td>Tap Power</td></tr>
+              <tr><th scope="row">Ultimate <small>3 orbs</small></th><td>Hold <kbd>V</kbd></td><td>Hold Power</td></tr>
+              <tr><th scope="row">Pause</th><td><kbd>Esc</kbd></td><td>Pause</td></tr>
+            </tbody>
+          </table>
         </div>
-        <div
-          class="rounded-3xl overflow-hidden border border-white/10 bg-white/5 hover:scale-105 transition duration-300"
-        >
-          <img
-            src="https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1200&auto=format&fit=crop"
-            alt="Storm Fighter"
-            loading="lazy"
-            class="w-full h-80 object-cover"
-          />
-          <div class="p-6">
-            <h3 class="text-3xl font-bold text-cyan-400">Storm Fighter</h3>
-            <p class="mt-3 text-gray-300">
-              Master unique combat powers and devastating ultimate attacks.
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
+      </section>
+    </main>
 
-    <!-- Game Screens -->
-    <section class="py-24 px-6 bg-gradient-to-b from-gray-950 to-black">
-      <h2 class="text-5xl font-bold text-center mb-16">Gameplay Preview</h2>
-
-      <div class="grid md:grid-cols-2 gap-8 max-w-7xl mx-auto">
-        <div class="overflow-hidden rounded-3xl border border-white/10">
-          <img
-            src="https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?q=80&w=1400&auto=format&fit=crop"
-            alt="Gameplay Preview 1"
-            loading="lazy"
-            class="w-full h-[25rem] object-cover hover:scale-110 transition duration-500"
-          />
-        </div>
-        <div class="overflow-hidden rounded-3xl border border-white/10">
-          <img
-            src="https://images.unsplash.com/photo-1486572788966-cfd3df1f5b42?q=80&w=1400&auto=format&fit=crop"
-            alt="Gameplay Preview 2"
-            loading="lazy"
-            class="w-full h-[25rem] object-cover hover:scale-110 transition duration-500"
-          />
-        </div>
-      </div>
-    </section>
-
-    <!-- Download Section -->
-    <section class="py-28 px-6 text-center bg-black">
-      <h2
-        class="text-6xl font-extrabold mb-8 bg-gradient-to-r from-pink-500 to-cyan-400 bg-clip-text text-transparent"
-      >
-        Download The Game
-      </h2>
-
-      <p class="text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
-        Experience the future of anime combat gaming directly on your laptop.
-        Smooth graphics, cinematic battles, and online multiplayer support.
-      </p>
-
-      <button
-        onclick="mockDownload()"
-        class="mt-10 px-12 py-5 text-2xl rounded-2xl bg-gradient-to-r from-orange-500 to-pink-600 hover:scale-105 transition font-bold shadow-2xl"
-      >
-        Download for Windows
-      </button>
-    </section>
-
-    <!-- Footer -->
-    <footer
-      class="py-10 border-t border-white/10 text-center text-gray-500 bg-black"
-    >
-      © 2026 Anime Legends Studio • Built with HTML + TailwindCSS
+    <footer class="wrap">
+      <span class="brand">Anime Legends</span>
+      <a href="https://github.com/AunMohammad254/anime-legends">View on GitHub <span aria-hidden="true">→</span></a>
     </footer>
 
-    <!-- Trailer Modal -->
-    <div
-      id="trailerModal"
-      class="fixed inset-0 z-50 hidden bg-black/95 flex items-center justify-center p-4 backdrop-blur-md transition-opacity"
-    >
-      <div
-        class="relative w-full max-w-5xl rounded-2xl overflow-hidden border border-white/20 bg-gray-900 shadow-2xl"
-      >
-        <!-- Close Button -->
-        <button
-          onclick="closeTrailerModal()"
-          class="absolute top-4 right-4 text-white hover:text-pink-500 transition z-10 p-2 bg-black/50 rounded-full"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-8 w-8"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
-
-        <!-- Cloudinary Video Player -->
-        <iframe
-          src="https://player.cloudinary.com/embed/?cloud_name=dszrz6s6u&public_id=Add_more_duraion_of_this_202605140043_wllbyj"
-          width="640"
-          height="360"
-          style="
-            height: auto;
-            width: 100%;
-            aspect-ratio: 640 / 360;
-            display: block;
-          "
-          allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-          allowfullscreen
-          frameborder="0"
-        ></iframe>
+    <dialog id="gameplay" aria-labelledby="video-title">
+      <div class="dialog-header">
+        <h2 id="video-title">Gameplay preview</h2>
+        <form method="dialog"><button class="close" aria-label="Close preview">×</button></form>
       </div>
-    </div>
-
-    <script>
-      // Trailer Modal Logic
-      function openTrailerModal() {
-        document.getElementById("trailerModal").classList.remove("hidden");
-        document.body.style.overflow = "hidden"; // Prevent scrolling behind modal
-      }
-
-      function closeTrailerModal() {
-        document.getElementById("trailerModal").classList.add("hidden");
-        document.body.style.overflow = "auto"; // Restore scrolling
-      }
-
-      // Mock Download Logic
-      function mockDownload() {
-        alert(
-          "Thanks for downloading Anime Legends! Your download will begin shortly.",
-        );
-      }
-
-      // Close modal when clicking outside
-      document
-        .getElementById("trailerModal")
-        .addEventListener("click", function (e) {
-          if (e.target === this) {
-            closeTrailerModal();
-          }
-        });
-    </script>
+      <video controls playsinline preload="none" aria-label="A short match between two fighters" src="./media/punch-scene.mp4"></video>
+    </dialog>
+    <script type="module" src="./landing.js"></script>
   </body>
 </html>
