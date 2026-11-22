@@ -69,11 +69,11 @@ From a clean checkout, run these commands from the repository root.
 npm ci
 npm test -- --run
 npm run build
-npx playwright install chromium
+npx playwright install chromium firefox webkit
 npm run test:browser
 ```
 
-The browser suite starts Vite's preview server on port 4173 and exercises the built game in desktop and touch-emulated Chromium. On a fresh Linux runner, use `npx playwright install --with-deps chromium` to install Chromium's system libraries too. For a manual playthrough, run `npm run preview` after the build.
+The browser suite starts Vite's preview server on port 4173 and exercises the built game in desktop Chromium and Firefox, plus touch-emulated Chromium and WebKit. On a fresh Linux runner, use `npx playwright install --with-deps chromium firefox webkit` to install the browsers' system libraries too. For a manual playthrough, run `npm run preview` after the build.
 
 Pull requests and pushes to `main` run these checks in GitHub Actions. A successful run makes the production files available as the **anime-legends-dist** artifact. [Release checks](.github/workflows/check.yml)
 

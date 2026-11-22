@@ -31,8 +31,15 @@ test("a new player can fight, pause, finish survival and find the result after r
   }
   await expect.poll(() => player.evaluate((el) => el.offsetLeft)).toBeGreaterThan(initialX + 5);
 
-  if (isMobile) await page.getByRole("button", { name: "Pause match" }).tap();
-  else await page.keyboard.press("Escape");
+  if (isMobile) {
+    const { width, height } = page.viewportSize();
+    await page.setViewportSize({ width: height, height: width });
+    await expect(page.locator("#touch-controls-portrait")).toBeHidden();
+    await expect(page.locator("#touch-controls").getByRole("button", { name: "Light" })).toBeVisible();
+    await page.getByRole("button", { name: "Pause match" }).tap();
+  } else {
+    await page.keyboard.press("Escape");
+  }
   const pause = page.getByRole("dialog", { name: "Paused" });
   await expect(pause).toBeVisible();
   await pause.getByRole("button", { name: "Resume" }).click();
