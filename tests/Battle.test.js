@@ -100,6 +100,23 @@ describe("match simulation", () => {
     expect(engine.cpu.hp).toBeCloseTo(guardedHp);
   });
 
+  it("discards buffered taps on pause and at the start of a new match", () => {
+    start();
+    tap("Space");
+    engine.togglePause();
+    engine.togglePause();
+    step(1);
+    expect(engine.p1.dashActive).toBe(0);
+
+    tap("Space");
+    start();
+    step(1);
+    expect(engine.p1.dashActive).toBe(0);
+    tap("Space");
+    step(1);
+    expect(engine.p1.dashActive).toBeGreaterThan(0);
+  });
+
   it("freezes a pending knockout on pause and discards it on restart", () => {
     start();
     engine.cpu.takeDamage(500);
