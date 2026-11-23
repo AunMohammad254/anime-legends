@@ -1,0 +1,128 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AudioManager } from "../src/audio/AudioManager.js";
+
+// jsdom has no Web Audio backend. Track the lifetime and automation of the
+// sources that AudioManager would hand to the browser's audio output.
+class TestAudioContext {
+  constructor() {
+    this.state = "suspended";
+    this.sources = [];
+    this.destination = {};
+  }
+
+  get currentTime() { return performance.now() / 1000; }
+  async resume() { this.state = "running"; }
+  async suspend() { this.state = "suspended"; }
+
+  createOscillator() {
+    const source = {
+      frequency: this.createParam(),
+      connect() {},
+      disconnect: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn(),
+    };
+    this.sources.push(source);
+    return source;
+  }
+
+  createParam() {
+    return {
+      setValueAtTime: vi.fn(),
+      linearRampToValueAtTime() {},
+      exponentialRampToValueAtTime() {},
+    };
+  }
+
+  createGain() { return { gain: this.createParam(), connect() {}, disconnect() {} }; }
+  createBiquadFilter() { return { frequency: this.createParam(), connect() {}, disconnect() {} }; }
+}
+
+describe("Audio preferences and battle playback", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.stubGlobal("AudioContext", TestAudioContext);
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    localStorage.clear();
+  });
+
+  it("starts muted, remembers the player's choice, and respects it after reload", () => {
+    const audio = new AudioManager();
+    audio.init();
+    audio.playSound("special");
+    expect(audio.ctx.sources).toHaveLength(0);
+    expect(audio.toggle()).toBe(true);
+    const nextSession = new AudioManager();
+    nextSession.init();
+    expect(nextSession.enabled).toBe(true);
+    expect(nextSession.ctx.state).toBe("running");
+    expect(nextSession.toggle()).toBe(false);
+    nextSession.playSound("ko");
+    expect(nextSession.ctx.sources).toHaveLength(0);
+    expect(new AudioManager().enabled).toBe(false);
+  });
+
+  it("keeps the saved preference when this browser cannot create audio output", () => {
+    localStorage.setItem("anime-audio", "true");
+    vi.stubGlobal("AudioContext", class { constructor() { throw new Error("Device unavailable"); } });
+    const audio = new AudioManager();
+    audio.init();
+    expect(audio.toggle()).toBe(false);
+    audio.startBGM();
+    audio.playSound("block");
+    audio.stopBGM();
+    expect(vi.getTimerCount()).toBe(0);
+    expect(localStorage.getItem("anime-audio")).toBe("true");
+  });
+
+  it("allows sound for the current session when browser storage is disabled", () => {
+    const denied = () => { throw new DOMException("Storage disabled", "SecurityError"); };
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(denied);
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(denied);
+    const audio = new AudioManager();
+    expect(audio.toggle()).toBe(true);
+    audio.playSound("ko");
+    const tone = audio.ctx.sources.at(-1);
+    expect(tone.start).toHaveBeenCalledOnce();
+    expect(tone.stop.mock.calls[0][0]).toBeGreaterThan(audio.ctx.currentTime);
+    tone.onended();
+    expect(tone.disconnect).toHaveBeenCalledOnce();
+    expect(audio.toggle()).toBe(false);
+  });
+
+  it("keeps a single music track, stops it when paused or muted, and restarts it on request", () => {
+    const audio = new AudioManager();
+    audio.init();
+    audio.startBGM();
+    expect(audio.ctx.sources).toHaveLength(0);
+    audio.toggle(); // Unmute after the match has begun.
+    const firstTrack = [...audio.ctx.sources];
+    expect(firstTrack.length).toBeGreaterThan(0);
+    audio.startBGM();
+    expect(audio.ctx.sources).toHaveLength(firstTrack.length);
+    vi.advanceTimersByTime(600);
+    const melody = firstTrack.find((source) => source.frequency.setValueAtTime.mock.calls.length > 1);
+    expect(melody).toBeDefined();
+
+    audio.stopBGM(); // Pause the match.
+    for (const source of firstTrack) expect(source.stop).toHaveBeenCalledOnce();
+    const noteCount = melody.frequency.setValueAtTime.mock.calls.length;
+    vi.advanceTimersByTime(1000);
+    expect(melody.frequency.setValueAtTime).toHaveBeenCalledTimes(noteCount);
+
+    audio.startBGM(); // Resume the match.
+    const resumedTrack = audio.ctx.sources.slice(firstTrack.length);
+    expect(resumedTrack).toHaveLength(firstTrack.length);
+    audio.toggle(); // Mute while playing.
+    for (const source of resumedTrack) expect(source.stop).toHaveBeenCalledOnce();
+    audio.stopBGM(); // End the muted match, then enable sound in the menu.
+    audio.toggle();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});

@@ -7,15 +7,8 @@ export default defineConfig({
     environment: "jsdom",
     coverage: {
       provider: "v8",
-      reporter: ["text", "html", "lcov"],
-      exclude: [
-        "node_modules/",
-        "dist/",
-        "docs/",
-        "*.config.js",
-        "test-*.js",
-        "test-*.html",
-      ],
+      include: ["src/**/*.js", "engine.js", "constants.js", "landing.js", "main.js", "state.js", "ui.js"],
+      reporter: ["text", "html", "lcov", "json-summary"],
     },
   },
 });

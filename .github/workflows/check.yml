@@ -9,21 +9,105 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: game-checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  verify:
-    runs-on: ubuntu-latest
+  test-and-build:
+    name: Unit and production build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npm test -- --run
+      - if: runner.os == 'Linux'
+        run: npm run test:coverage -- --run
+      - if: runner.os == 'Windows'
+        run: npm test -- --run
       - run: npm run build
-      - run: npx playwright install --with-deps chromium firefox webkit
-      - run: npm run test:browser
-      - uses: actions/upload-artifact@v4
+      - run: npm run test:dist
+      - name: Upload coverage report
+        if: always() && runner.os == 'Linux' && !cancelled()
+        uses: actions/upload-artifact@v7
+        with:
+          name: unit-coverage
+          path: coverage/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Stage the Linux build for browser tests
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-test-build
+          path: dist/
+          if-no-files-found: error
+          retention-days: 1
+
+  browser:
+    name: Browser tests (${{ matrix.engine }})
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - engine: chromium
+            projects: desktop touch
+          - engine: firefox
+            projects: firefox
+          - engine: webkit
+            projects: iphone
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v8
+        with:
+          name: browser-test-build
+          path: dist/
+      - run: npx playwright install --with-deps ${{ matrix.engine }}
+      - run: npm run test:browser -- --project ${{ matrix.projects }}
+      - name: Upload browser failure report, traces, and screenshots
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-failures-${{ matrix.engine }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 7
+
+  verify:
+    needs: [test-and-build, browser]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require all test jobs to pass
+        env:
+          BUILD_RESULT: ${{ needs.test-and-build.result }}
+          BROWSER_RESULT: ${{ needs.browser.result }}
+        run: test "$BUILD_RESULT" = success && test "$BROWSER_RESULT" = success
+      - uses: actions/download-artifact@v8
+        with:
+          name: browser-test-build
+          path: dist/
+      - name: Publish the tested production build
+        uses: actions/upload-artifact@v7
         with:
           name: anime-legends-dist
           path: dist/

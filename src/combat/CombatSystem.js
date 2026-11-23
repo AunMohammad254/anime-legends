@@ -23,6 +23,7 @@ export class CombatState {
 
     /** Current move being executed (from MOVE_DATA) */
     this.activeMove = null;
+    this.extraReach = 0;
 
     /** Frame counters (in 60fps frames) */
     this.framesLeft = 0;
@@ -67,6 +68,8 @@ export class CombatState {
       return false;
     }
 
+    // The last katana charge is consumed at startup. Its reach belongs to this swing.
+    this.extraReach = this.fighter.weapon?.id === "katana" ? 45 : 0;
     this.moveId = moveId;
     this.activeMove = move;
     this._transition(FighterState.STARTUP, move.startupFrames);
@@ -177,7 +180,7 @@ export class CombatState {
   getHitbox() {
     if (!this.isHitboxLive || !this.activeMove) return null;
     const { xOffset, yOffset, width: baseWidth, height } = this.activeMove.hitbox;
-    const width = baseWidth + (this.fighter.weapon?.id === "katana" ? 45 : 0);
+    const width = baseWidth + this.extraReach;
     return {
       x: this.fighter.x + (this.fighter.dir > 0 ? xOffset : -(xOffset + width)),
       y: this.fighter.y + yOffset,

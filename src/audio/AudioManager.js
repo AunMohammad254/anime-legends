@@ -29,7 +29,8 @@ export class AudioManager {
 
   toggle() {
     this.init();
-    this.enabled = Boolean(this.ctx) && !this.enabled;
+    if (!this.ctx) return false;
+    this.enabled = !this.enabled;
     try {
       localStorage.setItem("anime-audio", String(this.enabled));
     } catch {
@@ -42,7 +43,7 @@ export class AudioManager {
       else this.playSound("swing");
     } else {
       this.clearBGM();
-      this.ctx?.suspend().catch(() => {});
+      this.ctx.suspend().catch(() => {});
     }
     return this.enabled;
   }

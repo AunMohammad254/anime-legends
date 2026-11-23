@@ -1,16 +1,4 @@
-import { test as base, expect } from "@playwright/test";
-
-const test = base.extend({
-  page: async ({ page }, use) => {
-    const errors = [];
-    page.on("pageerror", (error) => errors.push(error.message));
-    page.on("response", (response) => {
-      if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`);
-    });
-    await use(page);
-    expect(errors).toEqual([]);
-  },
-});
+import { test, expect } from "./fixtures.js";
 
 test("a new player can fight, pause, finish survival and find the result after reloading", async ({ page, isMobile }) => {
   await page.clock.install();

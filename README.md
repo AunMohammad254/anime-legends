@@ -67,15 +67,18 @@ From a clean checkout, run these commands from the repository root.
 
 ```sh
 npm ci
-npm test -- --run
+npm run test:coverage -- --run
 npm run build
+npm run test:dist
 npx playwright install chromium firefox webkit
 npm run test:browser
 ```
 
 The browser suite starts Vite's preview server on port 4173 and exercises the built game in desktop Chromium and Firefox, plus touch-emulated Chromium and WebKit. On a fresh Linux runner, use `npx playwright install --with-deps chromium firefox webkit` to install the browsers' system libraries too. For a manual playthrough, run `npm run preview` after the build.
 
-Pull requests and pushes to `main` run these checks in GitHub Actions. A successful run makes the production files available as the **anime-legends-dist** artifact. [Release checks](.github/workflows/check.yml)
+GitHub Actions runs the unit suite and builds the game on Linux and Windows. Both runners check that each built page, its links, and its local assets resolve under a deployment subdirectory. The browser jobs use the same Linux build for keyboard and touch playthroughs, a timed knockout, pausing and restarting, shopping, cross-tab saves, blocked storage, and menu navigation.
+
+Open **unit-coverage** on the workflow run for the unit coverage report. A failed browser job provides a **browser-failures** artifact for its engine with an HTML report, traces, and screenshots. Once all jobs pass, **anime-legends-dist** contains the build that the browsers tested. Checks run on pull requests, pushes to `main`, and manual runs. [Release checks](.github/workflows/check.yml)
 
 ## Deploy to Netlify
 

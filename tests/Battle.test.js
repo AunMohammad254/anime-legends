@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { engine } from "../engine.js";
-import { CHARACTERS } from "../constants.js";
+import { CHARACTERS, WEAPONS } from "../constants.js";
 
 const frame = 1000 / 60;
 const opponent = CHARACTERS.find(c => c.id === "shadow");
@@ -70,6 +70,131 @@ describe("fighter abilities", () => {
     engine.keyboardInput.setKeyState("KeyV", false);
     step(1);
     expect(engine.p1.cooldowns.ult).toBeGreaterThan(0);
+  });
+});
+
+describe("arena weapons", () => {
+  // Fast-forward the drop timer and choose a weapon at the center of the arena.
+  // Pickup, attack startup, impacts and expiry still run on normal simulation steps.
+  function spawnDrop(id) {
+    const index = WEAPONS.findIndex(weapon => weapon.id === id);
+    expect(index).toBeGreaterThanOrEqual(0);
+    const random = vi.spyOn(Math, "random").mockReturnValueOnce((index + 0.5) / WEAPONS.length).mockReturnValueOnce(0.5);
+    engine.updateWeaponSpawn(engine.weaponTimer);
+    random.mockRestore();
+    return engine.activeWeaponDrop;
+  }
+
+  function collect(id, fighter = engine.p1) {
+    const drop = spawnDrop(id);
+    fighter.x = drop.x;
+    step(1);
+    expect(fighter.weapon.id).toBe(id);
+    expect(drop.el.isConnected).toBe(false);
+  }
+
+  it("lets an unclaimed drop expire, then replaces equipped gear with the next pickup", () => {
+    start(opponent);
+    const abandoned = spawnDrop("orb");
+    engine.p1.x = abandoned.x;
+    engine.p1.y = 90;
+    step(1);
+    expect(engine.p1.weapon).toBeNull();
+    engine.updateWeaponSpawn(abandoned.timer);
+    expect(engine.activeWeaponDrop).toBeNull();
+    expect(abandoned.el.isConnected).toBe(false);
+
+    engine.p1.y = 0;
+    collect("bow");
+    const firstIcon = engine.p1.el.querySelector(".equipped-weapon");
+    collect("blade");
+    expect(firstIcon.isConnected).toBe(false);
+    expect(engine.p1.el.querySelectorAll(".equipped-weapon")).toHaveLength(1);
+    expect(engine.cpu.weapon).toBeNull();
+  });
+
+  it("retains katana reach on the last swing, then returns to unarmed reach", () => {
+    start(opponent);
+    collect("katana");
+    engine.p1.weapon.hits = 1;
+    engine.cpu.x = engine.p1.x + 165;
+    tap("KeyZ");
+    step(32);
+    expect(engine.cpu.hp).toBeLessThan(100);
+    expect(engine.p1.weapon).toBeNull();
+    expect(engine.p1.el.querySelector(".equipped-weapon")).toBeNull();
+
+    const hpAfterKatana = engine.cpu.hp;
+    engine.cpu.x = engine.p1.x + 165;
+    engine.cpu.vx = 0;
+    tap("KeyZ");
+    step(32);
+    expect(engine.cpu.hp).toBe(hpAfterKatana);
+    expect(WEAPONS.find(w => w.id === "katana").hits).toBe(8);
+  });
+
+  it("pierces normal guard with the bow but a guarding gauntlet can return a lethal arrow", () => {
+    start(opponent);
+    collect("bow");
+    engine.p1.x = 140;
+    engine.cpu.x = 600;
+    engine.cpu.isBlocking = true;
+    tap("KeyZ");
+    step(45);
+    expect(engine.cpu.hp).toBeCloseTo(100 - 20 * 1.035);
+    expect(engine.p1.weapon.hits).toBe(4);
+    expect(engine.p1.hp).toBe(100);
+
+    collect("gauntlet", engine.cpu);
+    const guardedHp = engine.cpu.hp;
+    engine.p1.hp = 10;
+    tap("KeyZ");
+    step(120);
+    expect(engine.cpu.hp).toBe(guardedHp);
+    expect(engine.p1.hp).toBe(0);
+    expect(engine.onGameEnd).toHaveBeenCalledTimes(1);
+    expect(engine.onGameEnd.mock.calls[0][0]).toBe("DEFEAT");
+    expect(engine.arenaEl.querySelector(".proj")).toBeNull();
+  });
+
+  it("uses the shadow blade for a heavy blink strike from across the arena", () => {
+    start(opponent);
+    collect("blade");
+    engine.p1.x = 100;
+    engine.cpu.x = 700;
+    tap("KeyZ");
+    step(25);
+    expect(engine.p1.x).toBe(100);
+    expect(engine.cpu.hp).toBe(100);
+    expect(engine.p1.weapon.hits).toBe(3);
+
+    tap("KeyX");
+    step(1);
+    expect(Math.abs(engine.cpu.x - engine.p1.x)).toBeLessThan(100);
+    expect(engine.cpu.hp).toBe(100);
+    step(25);
+    expect(engine.cpu.hp).toBeLessThan(80);
+    expect(engine.p1.weapon.hits).toBe(2);
+  });
+
+  it("deals proximity damage from the chaos orb only while the target is exposed and the orb lasts", () => {
+    start(opponent);
+    collect("orb");
+    engine.cpu.x = engine.p1.x - 90;
+    engine.cpu.isBlocking = true;
+    step(30);
+    expect(engine.cpu.hp).toBe(100);
+    engine.cpu.isBlocking = false;
+    engine.cpu.dashActive = 600;
+    step(30);
+    expect(engine.cpu.hp).toBe(100);
+    engine.cpu.dashActive = 0;
+    step(60);
+    expect(engine.cpu.hp).toBeCloseTo(95);
+    engine.p1.weapon.dur = frame / 1000;
+    step(30);
+    expect(engine.p1.weapon).toBeNull();
+    expect(engine.cpu.hp).toBeCloseTo(95);
   });
 });
 
@@ -148,12 +273,32 @@ describe("match simulation", () => {
     expect(engine.onGameEnd.mock.calls[0][0]).toBe("VICTORY");
   });
 
-  it("determines a timed match by remaining health percentage", () => {
+  it.each([
+    [126, 62, "VICTORY"], [126, 63, "DRAW"], [126, 64, "DEFEAT"],
+  ])("compares health percentages at timeout (%i / 200 vs. %i / 100 gives %s)", (playerHp, cpuHp, outcome) => {
     start();
-    engine.cpu.hp = 25;
+    engine.p1.maxHp = 200;
+    engine.p1.hp = playerHp;
+    engine.cpu.hp = cpuHp;
     engine.timer = 0.01;
     step(1);
-    expect(engine.onGameEnd.mock.calls[0][0]).toBe("VICTORY");
+    expect(engine.onGameEnd.mock.calls[0][0]).toBe(outcome);
+  });
+
+  it("starts the expert boss on a first-round time advantage and can lose the second round on time", () => {
+    start(opponent, "expert");
+    engine.cpu.hp = 20;
+    engine.timer = 0.01;
+    step(1);
+    expect(engine.bossPhase).toBe(true);
+    expect(engine.cpu.hp).toBe(engine.cpu.maxHp);
+    expect(engine.timer).toBeGreaterThan(0);
+    expect(engine.onGameEnd).not.toHaveBeenCalled();
+    engine.p1.hp = 50;
+    engine.timer = 0.01;
+    step(1);
+    expect(engine.onGameEnd).toHaveBeenCalledTimes(1);
+    expect(engine.onGameEnd.mock.calls[0][0]).toBe("DEFEAT");
   });
 
   it("requires the expert boss to fall before awarding victory", () => {
