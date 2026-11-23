@@ -44,10 +44,18 @@ describe("Battle input", () => {
     expect(keyboard.consumePress("KeyZ")).toBe(true);
     expect(keyboard.consumePress("KeyZ")).toBe(false);
 
-    const now = vi.spyOn(performance, "now").mockReturnValue(100);
     key("keydown", "KeyX");
-    now.mockReturnValue(500);
+    keyboard.advance(400);
     expect(keyboard.consumePress("KeyX")).toBe(false);
+  });
+
+  it("retains a tap through a slow browser frame until the match gets a chance to act", () => {
+    const now = vi.spyOn(performance, "now").mockReturnValue(100);
+    key("keydown", "Space");
+    key("keyup", "Space");
+    now.mockReturnValue(400);
+    keyboard.advance(1000 / 60);
+    expect(keyboard.consumePress("Space")).toBe(true);
   });
 
   it("keeps menu navigation and browser shortcuts available", () => {

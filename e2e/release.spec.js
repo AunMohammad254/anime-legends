@@ -13,12 +13,16 @@ const test = base.extend({
 });
 
 test("a new player can fight, pause, finish survival and find the result after reloading", async ({ page, isMobile }) => {
+  await page.clock.install();
   await page.goto("/");
   await page.getByRole("link", { name: "Enter the arena" }).click();
   await page.getByRole("button", { name: "Choose fighter" }).click();
   await expect(page.locator("#char-grid button")).toHaveCount(10);
   await page.getByRole("button", { name: /Survival/ }).click();
+  // Hold the match clock at the opening so CPU hitstun cannot swallow the first dash.
+  await page.clock.pauseAt(new Date(await page.evaluate(() => Date.now() + 1000)));
   await page.locator("#fight-btn").click();
+  await page.clock.runFor(1050);
   await expect(page.locator("#game-timer")).toHaveText("∞");
   const player = page.locator("#p1-sprite");
   const initialX = await player.evaluate((el) => el.offsetLeft);
@@ -29,7 +33,9 @@ test("a new player can fight, pause, finish survival and find the result after r
   } else {
     await page.keyboard.press("Space");
   }
-  await expect.poll(() => player.evaluate((el) => el.offsetLeft)).toBeGreaterThan(initialX + 5);
+  await page.clock.runFor(100);
+  expect(await player.evaluate((el) => el.offsetLeft)).toBeGreaterThan(initialX + 5);
+  await page.clock.resume();
 
   if (isMobile) {
     const { width, height } = page.viewportSize();

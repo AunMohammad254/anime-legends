@@ -145,6 +145,7 @@ class Engine {
   }
 
   step(dt) {
+    this.keyboardInput.advance(dt);
     this.particleSystem.update(dt);
     this.updateTrails();
     if (this.announcementTime > 0) {

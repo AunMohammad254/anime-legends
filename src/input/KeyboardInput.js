@@ -4,6 +4,7 @@ const INPUT_BUFFER_MS = 160;
 export class KeyboardInput {
   constructor(engine) {
     this.engine = engine;
+    this.simulationTime = 0;
     this.held = new Map();
     this.presses = new Map();
     this.releases = new Map();
@@ -68,12 +69,17 @@ export class KeyboardInput {
         sources.add(source);
       } else {
         this.held.set(code, new Set([source]));
-        this.presses.set(code, performance.now());
+        this.presses.set(code, this.simulationTime);
       }
     } else if (sources?.delete(source) && sources.size === 0) {
       this.held.delete(code);
-      this.releases.set(code, performance.now());
+      this.releases.set(code, this.simulationTime);
     }
+  }
+
+  // Input waiting for a frame shouldn't expire during a browser rendering stall.
+  advance(dt) {
+    this.simulationTime += dt;
   }
 
   // Capture a tap that starts and ends between two simulation steps.
@@ -88,7 +94,7 @@ export class KeyboardInput {
   consume(buffer, code) {
     const time = buffer.get(code);
     buffer.delete(code);
-    return time !== undefined && performance.now() - time <= INPUT_BUFFER_MS;
+    return time !== undefined && this.simulationTime - time <= INPUT_BUFFER_MS;
   }
 
   cancelSource(source) {
