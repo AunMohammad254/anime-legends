@@ -66,4 +66,17 @@ describe("EventBus", () => {
       expect(count).toBe(0);
     });
   });
+
+  it("keeps subscribers when an unregistered listener is removed, including during nested delivery", () => {
+    const calls = [];
+    const audience = (message) => calls.push(message);
+    EventBus.on("gameEnd", (result) => {
+      EventBus.off("missing", audience);
+      EventBus.off("score", audience);
+      EventBus.emit("score", result.points);
+    });
+    EventBus.on("score", (points) => audience(points));
+    EventBus.emit("gameEnd", { points: 300 });
+    expect(calls).toEqual([300]);
+  });
 });

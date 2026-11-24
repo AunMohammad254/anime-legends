@@ -1,84 +1,36 @@
-/**
- * Engine.js
- * Finalized Game Loop Orchestrator.
- * Integrates modular systems for Combat, AI, Input, and Entities.
- */
-
 import { state } from "./state.js";
-import { WEAPONS, STAT_BOOSTS } from "./constants.js";
+import { CHARACTERS, WEAPONS, STAT_BOOSTS } from "./constants.js";
 import { CombatState, resolveCollision } from "./src/combat/CombatSystem.js";
 import { AIController } from "./src/ai/AIController.js";
 import { KeyboardInput } from "./src/input/KeyboardInput.js";
 import { TouchInput } from "./src/input/TouchInput.js";
 import { AudioManager } from "./src/audio/AudioManager.js";
 import { ParticleSystem } from "./src/vfx/ParticleSystem.js";
-import { Character } from "./src/entities/Character.js";
+import { Character, createFighterHTML } from "./src/entities/Character.js";
 import { Projectile } from "./src/entities/Projectile.js";
+
+import { castAbility } from "./src/combat/Abilities.js";
+
+const FRAME = 1000 / 60;
 
 class Engine {
   constructor() {
     this.gameActive = false;
     this.paused = false;
-    this.lastTime = 0;
-    this.timer = 60;
-    this.gameSpeed = 1;
-    this.arenaEl = null;
-    this.p1 = null;
-    this.cpu = null;
-    this.aiController = null;
+    this.frameId = null;
     this.projectiles = [];
     this.trails = [];
-    this.activeWeaponDrop = null;
-    this.weaponTimer = 0;
-    this.difficulty = "normal";
-    this.matchHealth = 100;
-
     this.audioManager = new AudioManager();
-    this.particleSystem = null;
     this.keyboardInput = new KeyboardInput(this);
     this.touchInput = new TouchInput(this, this.keyboardInput);
-
-    this.onGameEnd = null;
-    this.onHUDUpdate = null;
-    this.onComboUpdate = null;
-    this.onShake = null;
+    this.battleLoop = this.battleLoop.bind(this);
   }
 
   init() {
     this.arenaEl = document.getElementById("arena");
-    this.vfxCanvas = document.getElementById("vfx-layer");
-    if (this.vfxCanvas) this.vfxCtx = this.vfxCanvas.getContext("2d");
-    
-    // Legacy pool for backward compatibility in entities (embers)
-    this.particlePool = Array(500).fill().map(() => ({
-        active: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, color: "", size: 4, noGrav: false
-    }));
-
-    this.resizeCanvas();
-    window.addEventListener("resize", () => this.resizeCanvas());
-
     this.particleSystem = new ParticleSystem(this.arenaEl);
-
-    this.preventDefaultBrowserBehaviors();
     this.keyboardInput.init();
     this.touchInput.init();
-  }
-
-  resizeCanvas() {
-    if (!this.vfxCanvas || !this.arenaEl) return;
-    this.vfxCanvas.width = this.arenaEl.offsetWidth;
-    this.vfxCanvas.height = this.arenaEl.offsetHeight;
-  }
-
-  preventDefaultBrowserBehaviors() {
-    document.addEventListener("touchmove", (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
-    let lastTap = 0;
-    document.addEventListener("touchend", (e) => {
-      const now = Date.now();
-      if (now - lastTap < 300) e.preventDefault();
-      lastTap = now;
-    }, { passive: false });
-    document.addEventListener("contextmenu", (e) => e.preventDefault());
   }
 
   initAudio() {
@@ -89,299 +41,293 @@ class Engine {
     return this.audioManager.toggle();
   }
 
+  resetInput() {
+    this.keyboardInput.reset();
+    this.touchInput.reset();
+    if (this.p1) {
+      this.p1.ultCharge = 0;
+      this.p1.isBlocking = false;
+    }
+    this.ultimateCast = false;
+  }
+
   togglePause() {
-    if (!this.gameActive) return;
+    if (!this.gameActive) return false;
+    this.resetInput();
     this.paused = !this.paused;
-    if (!this.paused) {
-      this.lastTime = performance.now();
-      requestAnimationFrame((t) => this.battleLoop(t));
+    if (this.paused) {
+      cancelAnimationFrame(this.frameId);
+      this.frameId = null;
+      this.audioManager.stopBGM();
+    } else {
+      this.lastTime = null;
+      this.audioManager.startBGM();
+      this.frameId = requestAnimationFrame(this.battleLoop);
     }
     return this.paused;
   }
 
+  clearAttacks() {
+    for (const p of this.projectiles) p.destroy();
+    this.projectiles = [];
+    for (const fighter of [this.p1, this.cpu]) {
+      if (fighter) fighter.pendingActions.length = 0;
+    }
+  }
+
+  stopBattle() {
+    this.gameActive = false;
+    this.paused = false;
+    cancelAnimationFrame(this.frameId);
+    this.frameId = null;
+    this.resetInput();
+    this.clearAttacks();
+    this.ko = null;
+    this.audioManager.stopBGM();
+    this.particleSystem?.clear();
+    this.activeWeaponDrop?.el.remove();
+    this.activeWeaponDrop = null;
+    this.trails = [];
+    this.arenaEl?.querySelectorAll(".trail-ghost, .ground-crack, .damage-num").forEach(el => el.remove());
+  }
+
   startBattle(playerChar, cpuChar, difficulty, matchHealth) {
+    this.stopBattle();
     this.difficulty = difficulty;
     this.matchHealth = matchHealth;
-    this.projectiles.forEach(p => p.destroy());
-    this.projectiles = [];
-    this.trails = [];
-    this.activeWeaponDrop = null;
     this.weaponTimer = 8000;
     this.gameActive = true;
-    this.paused = false;
     this.bossPhase = false;
     this.survivalKills = 0;
+    this.lastTime = null;
+    this.accumulator = 0;
+    this.announcementTime = 0;
+    const baseHp = matchHealth === "unlimited" ? 100 : Number(matchHealth);
+    this.timer = baseHp >= 300 ? 120 : baseHp >= 200 ? 99 : 60;
 
-    let baseHp = matchHealth === "unlimited" ? 100 : parseInt(matchHealth);
-    let p1MaxHp = matchHealth === "unlimited" ? 999999 : baseHp;
-    
-    this.timer = matchHealth === "unlimited" ? 999 : baseHp >= 300 ? 120 : baseHp >= 200 ? 99 : 60;
-    this.gameSpeed = 1;
-    this.lastTime = 0;
-
-    let p1StartPower = 0;
-    let p1SpdMult = 1;
-
-    state.data.activeBoosts.forEach((id) => {
-      const boost = STAT_BOOSTS.find((b) => b.id === id);
-      if (boost) {
-        if (boost.effect.type === "hp") p1MaxHp *= boost.effect.value;
-        if (boost.effect.type === "power") p1StartPower = boost.effect.value;
-        if (boost.effect.type === "spd") p1SpdMult = boost.effect.value;
-      }
-    });
-
-    this.p1 = new Character(playerChar, true, this, {
-      maxHp: p1MaxHp, startPower: p1StartPower, spdMult: p1SpdMult, skinId: state.data.activeSkinId
-    });
-
-    this.cpu = new Character(cpuChar, false, this, {
-      maxHp: baseHp, startPower: 0, spdMult: 1, skinId: "default"
-    });
-
-    this.aiController = new AIController(this.cpu, this.p1, this);
+    const options = { maxHp: baseHp, startPower: 0, spdMult: 1, skinId: state.data.activeSkinId };
+    for (const boost of STAT_BOOSTS.filter(b => state.data.activeBoosts.includes(b.id))) {
+      if (boost.effect.type === "hp") options.maxHp *= boost.effect.value;
+      if (boost.effect.type === "power") options.startPower = boost.effect.value;
+      if (boost.effect.type === "spd") options.spdMult = boost.effect.value;
+    }
+    this.p1 = new Character(playerChar, true, this, options);
     this.p1.combatState = new CombatState(this.p1, this);
-    this.cpu.combatState = new CombatState(this.cpu, this);
-
+    this.spawnOpponent(cpuChar, baseHp);
+    this.p1.render();
+    this.onHUDUpdate?.(this.p1, this.cpu, this.timer);
     this.initAudio();
-    if (this.audioManager.enabled) this.audioManager.startBGM();
+    this.audioManager.startBGM();
+    this.frameId = requestAnimationFrame(this.battleLoop);
+  }
 
-    requestAnimationFrame((t) => this.battleLoop(t));
+  spawnOpponent(data, maxHp, startPower = 0, spdMult = 1) {
+    this.cpu = new Character(data, false, this, { maxHp, startPower, spdMult });
+    this.cpu.combatState = new CombatState(this.cpu, this);
+    this.aiController = new AIController(this.cpu, this.p1, this);
+    this.cpu.render();
   }
 
   battleLoop(time) {
+    this.frameId = null;
     if (!this.gameActive || this.paused) return;
-    if (!this.lastTime) this.lastTime = time;
-    const dt = (time - this.lastTime) * this.gameSpeed;
+    // Simulate at 60 Hz on both high-refresh displays and slower mobile devices.
+    this.accumulator += Math.min(100, time - (this.lastTime ?? time));
     this.lastTime = time;
+    while (this.accumulator >= FRAME && this.gameActive) {
+      this.accumulator -= FRAME;
+      this.step(FRAME);
+    }
+    if (this.gameActive && !this.paused) {
+      this.onHUDUpdate?.(this.p1, this.cpu, this.timer);
+      this.frameId = requestAnimationFrame(this.battleLoop);
+    }
+  }
 
-    if (dt > 100) {
-      requestAnimationFrame((t) => this.battleLoop(t));
+  step(dt) {
+    this.keyboardInput.advance(dt);
+    this.particleSystem.update(dt);
+    this.updateTrails();
+    if (this.announcementTime > 0) {
+      this.announcementTime -= dt;
+      if (this.announcementTime <= 0) document.getElementById("round-text").style.opacity = 0;
+    }
+    if (this.ko) {
+      this.ko.time -= dt;
+      if (this.ko.time <= 0) this.finishKO();
       return;
     }
 
-    this.handleInput(dt);
-    this.aiController.update();
-
-    this.p1.combatState?.tick();
-    this.cpu.combatState?.tick();
-
-    this.p1.update(dt, this.cpu);
-    this.cpu.update(dt, this.p1);
-
-    this.updateProjectiles(dt);
-    this.updateTrails(dt);
-    this.updateWeaponSpawn(dt);
-
-    if (this.onHUDUpdate) this.onHUDUpdate(this.p1, this.cpu, this.timer);
-
     if (this.matchHealth !== "unlimited") {
-      this.timer -= dt / 1000;
-      if (this.timer <= 0) this.gameEnd("DRAW");
+      this.timer = Math.max(0, this.timer - dt / 1000);
+      if (this.timer === 0) {
+        const lead = this.p1.hp / this.p1.maxHp - this.cpu.hp / this.cpu.maxHp;
+        if (lead > 1e-6 && this.difficulty === "expert" && !this.bossPhase) {
+          this.nextRound(false);
+        } else {
+          this.gameEnd(Math.abs(lead) < 1e-6 ? "DRAW" : lead > 0 ? "VICTORY" : "DEFEAT");
+        }
+        return;
+      }
     }
 
-    requestAnimationFrame((t) => this.battleLoop(t));
+    const frozen = this.p1.combatState.hitstopFrames > 0 || this.cpu.combatState.hitstopFrames > 0;
+    this.p1.combatState.tick();
+    this.cpu.combatState.tick();
+    if (frozen) return;
+    this.handleInput(dt);
+    if (this.ko) return;
+    this.aiController.update(dt);
+    if (this.ko) return;
+    this.resolveStrike(this.p1, this.cpu);
+    if (this.ko) return;
+    this.resolveStrike(this.cpu, this.p1);
+    if (this.ko) return;
+    this.p1.update(dt, this.cpu);
+    if (this.ko) return;
+    this.cpu.update(dt, this.p1);
+    if (this.ko) return;
+    for (const projectile of this.projectiles) {
+      projectile.update(dt);
+      if (this.ko) return;
+    }
+    this.projectiles = this.projectiles.filter(p => p.active);
+    this.updateWeaponSpawn(dt);
   }
 
   handleInput(dt) {
-    if (this.p1.state === "ko") return;
-    if (this.p1.cooldowns.hurt > 0 || this.p1.cooldowns.actionLock > 0) return;
-
-    this.p1.isBlocking = this.keyboardInput.isPressed("KeyC");
-    if (this.p1.isBlocking) {
-      this.p1.setState("block");
-      this.p1.vx *= 0.8;
-      this.p1.ultCharge = 0;
+    const f = this.p1;
+    const input = this.keyboardInput;
+    const released = input.consumeRelease("KeyV");
+    const held = input.isPressed("KeyV");
+    if (!held) f.ultCharge = 0;
+    if (f.cooldowns.hurt > 0 || f.cooldowns.actionLock > 0 || !f.combatState.canAct) {
+      if (released) this.ultimateCast = false;
+      return;
+    }
+    f.isBlocking = input.isPressed("KeyC");
+    if (f.isBlocking) {
+      f.setState("block");
+      f.vx *= 0.8;
+      f.ultCharge = 0;
+      this.ultimateCast = false;
       return;
     }
 
-    const moveSpd = 6 * this.p1.spdMult;
-    if (this.keyboardInput.isPressed("ArrowLeft")) {
-      this.p1.vx = -moveSpd;
-      this.p1.dir = -1;
-      this.p1.setState("run");
-    } else if (this.keyboardInput.isPressed("ArrowRight")) {
-      this.p1.vx = moveSpd;
-      this.p1.dir = 1;
-      this.p1.setState("run");
+    const direction = Number(input.isPressed("ArrowRight")) - Number(input.isPressed("ArrowLeft"));
+    if (direction) {
+      f.vx = direction * 6 * f.spdMult;
+      f.dir = direction;
+      f.setState("run");
     } else {
-      this.p1.setState(`idle_${this.p1.data.id}`);
+      f.dir = this.cpu.x < f.x ? -1 : 1;
+      f.setState(f.y > 0 ? (f.vy < 0 ? "jump_rise" : "jump_fall") : `idle_${f.data.id}`);
+    }
+    if (input.isPressed("ArrowUp") && f.y === 0) {
+      f.vy = -18;
+      f.setState("jump_rise");
+    }
+    if (input.consumePress("Space") && f.cooldowns.dash <= 0) {
+      f.vx = f.dir * 25;
+      f.cooldowns.dash = 800;
+      f.dashActive = 200;
+      if (f.data.id === "shadow") f.opacity = 0.4;
     }
 
-    if (this.keyboardInput.isPressed("ArrowUp") && this.p1.y === 0) {
-      this.p1.vy = -18;
-      this.p1.setState("jump_rise");
+    if (released) {
+      if (!this.ultimateCast && this.useSpecial(f, this.cpu)) return;
+      this.ultimateCast = false;
     }
-    if (this.keyboardInput.isPressed("Space") && this.p1.cooldowns.dash <= 0) {
-      this.p1.vx = this.p1.dir * 25;
-      this.p1.cooldowns.dash = 800;
-      this.p1.dashActive = 200;
-      if (this.p1.data.id === "shadow") this.p1.opacity = 0.4;
+    if (held && !this.ultimateCast && f.power >= 1) {
+      f.ultCharge += dt;
+      f.setState("special_charge");
+      f.vx = 0;
+      if (f.ultCharge >= 600 && this.useUltimate(f, this.cpu)) this.ultimateCast = true;
+      return;
     }
-
-    if (this.keyboardInput.isPressed("KeyV")) {
-      this.p1.ultCharge += dt;
-      if (this.p1.ultCharge > 600 && this.p1.power >= 3 && this.p1.cooldowns.ult <= 0) {
-        this.useUltimate(this.p1, this.cpu);
-        this.p1.ultCharge = 0;
-        return;
-      } else if (this.p1.power >= 1 && this.p1.ultCharge < 200 && !this.keyboardInput.isPressed("KeyV_held")) {
-        this.useSpecial(this.p1, this.cpu);
-        this.keyboardInput.setKeyState("KeyV_held", true);
-      }
-      this.p1.setState("special_charge");
-      this.p1.vx = 0;
-    } else {
-      this.p1.ultCharge = 0;
-      this.keyboardInput.setKeyState("KeyV_held", false);
-    }
-
-    if (this.keyboardInput.isPressed("KeyZ")) {
-      this.attack(this.p1, this.cpu, "attack_light");
-      this.keyboardInput.setKeyState("KeyZ", false);
-    }
-    if (this.keyboardInput.isPressed("KeyX")) {
-      this.attack(this.p1, this.cpu, "attack_heavy");
-      this.keyboardInput.setKeyState("KeyX", false);
-    }
+    if (input.consumePress("KeyX")) this.attack(f, this.cpu, "attack_heavy");
+    else if (input.consumePress("KeyZ")) this.attack(f, this.cpu, "attack_light");
   }
 
   attack(f, target, type) {
-    if (f.cooldowns.attack > 0) return;
+    if (f.cooldowns.attack > 0 || f.cooldowns.hurt > 0 || !f.combatState.canAct) return;
+    if (!f.combatState.beginAttack(type)) return;
     this.playSound("swing");
+    f.isBlocking = false;
     f.setState(type);
-    f.cooldowns.attack = type === "attack_light" ? 250 : 500;
-    f.cooldowns.actionLock = type === "attack_light" ? 200 : 400;
-
-    let range = type === "attack_light" ? 100 : 130;
-    let projColor = f.weaponColor || f.data.color;
-
-    if (f.weapon) {
-      if (f.weapon.id === "katana") {
-        range = 140;
-        f.weapon.hits--;
-      } else if (f.weapon.id === "bow" && type === "attack_light") {
-        this.projectiles.push(new Projectile({ x: f.x + f.dir * 60, y: f.y + 80, vx: f.dir * 25, owner: f, color: projColor, dmg: 20, pierce: true, type: "arrow" }, this));
-        f.weapon.hits--;
-        return;
-      } else if (f.weapon.id === "blade" && type === "attack_heavy") {
-        f.x = target.x;
-        f.weapon.hits--;
-        f.cooldowns.attack = 1500;
-        f.cooldowns.actionLock = 800;
-        this.spawnParticles(f.x, f.y + 80, 15, projColor, 40, 500);
-      }
+    f.strikeResolved = false;
+    const move = f.combatState.activeMove;
+    f.cooldowns.actionLock = FRAME * (move.startupFrames + move.activeFrames + move.recoveryFrames);
+    if (f.weapon?.id === "blade" && type === "attack_heavy") {
+      f.dir = target.x > f.x ? 1 : -1;
+      f.x = Math.max(50, Math.min(this.arenaEl.offsetWidth - 50, target.x - f.dir * 75));
+      f.weapon.hits--;
+      this.spawnParticles(f.x, f.y + 80, 15, f.weaponColor || f.data.color, 40, 500);
+    } else if (f.weapon?.id === "bow" && type === "attack_light") {
+      this.fireProjectile(f, { vx: f.dir * 23, dmg: 20, pierce: true, type: "arrow" });
+      f.weapon.hits--;
+      f.strikeResolved = true;
+    } else if (f.weapon?.id === "katana") {
+      f.weapon.hits--;
     }
+  }
 
-    f.pendingActions.push({
-      delay: type === "attack_light" ? 100 : 200,
-      execute: () => {
-        if (!this.gameActive || f.state === "ko") return;
-        const dist = Math.abs(f.x + f.dir * 50 - target.x);
-        if (dist < range && Math.abs(target.y - f.y) < 100) {
-          const result = resolveCollision(f, target, type, this);
-          if (result !== "whiff") {
-            f.power = Math.min(f.maxPower, f.power + 0.4);
-            this.spawnParticles(target.x, target.y + 80, type === "attack_light" ? 6 : 12, projColor, type === "attack_light" ? 30 : 60, result === "blocked" ? 250 : 400);
-          }
-        }
-      },
-    });
+  resolveStrike(f, target) {
+    if (f.strikeResolved || !f.combatState.isHitboxLive) return;
+    const result = resolveCollision(f, target, f.combatState.moveId, this);
+    if (result === "whiff") return;
+    f.strikeResolved = true;
+    f.power = Math.min(f.maxPower, f.power + 0.4);
+  }
+
+  fireProjectile(f, config) {
+    this.projectiles.push(new Projectile({
+      x: f.x + f.dir * 55, y: f.y + 80, owner: f, color: f.weaponColor || f.data.color, ...config,
+    }, this));
   }
 
   useSpecial(f, target) {
-    if (f.power < 1 || f.cooldowns.attack > 0) return;
-    f.power -= 1;
-    f.setState("special_charge");
-    f.cooldowns.attack = 800;
-    f.cooldowns.actionLock = 500;
-    this.playSound("special");
-    this.spawnParticles(f.x, f.y + 80, 20, f.data.color, 50, 400);
-
-    if (f.data.id === "blaze")
-      this.projectiles.push(new Projectile({ x: f.x + f.dir * 60, y: f.y + 80, vx: f.dir * 12, owner: f, color: f.data.color, dmg: 30, type: "fireball" }, this));
-    else if (f.data.id === "shadow") {
-      f.opacity = 0;
-      f.pendingActions.push({
-        delay: 100,
-        execute: () => {
-          f.x = target.x - f.dir * 90;
-          f.opacity = 1;
-          for (let i = 0; i < 5; i++)
-            f.pendingActions.push({ delay: i * 100, execute: () => this.attack(f, target, "attack_light") });
-        },
-      });
-    } else if (f.data.id === "storm") {
-      f.vy = -22;
-      f.setState("jump_rise");
-      const checkLand = setInterval(() => {
-        if (!this.gameActive || f.state === "ko") { clearInterval(checkLand); return; }
-        if (f.y === 0) {
-          clearInterval(checkLand);
-          this.spawnParticles(f.x, 0, 30, f.data.color, 100, 500);
-          if (Math.abs(f.x - target.x) < 200) target.takeDamage(28, (target.x - f.x > 0 ? 1 : -1) * 15);
-        }
-      }, 16);
-    }
+    return this.activateAbility(f, target, false);
   }
 
   useUltimate(f, target) {
-    if (f.power < 3 || f.cooldowns.ult > 0) return;
-    f.power -= 3;
-    f.cooldowns.ult = 25000;
-    f.setState("special_charge");
-    this.playSound("special");
-
-    if (this.onShake) this.onShake(8);
-    this.gameSpeed = 0.2;
-    setTimeout(() => { this.gameSpeed = 1; }, 1000);
-
-    const ultColor = f.weaponColor || f.data.color;
-
-    if (f.data.id === "blaze") {
-      for (let i = 0; i < 12; i++) {
-        const angle = ((Math.PI * 2) / 12) * i;
-        this.projectiles.push(new Projectile({ x: f.x, y: f.y + 80, vx: Math.cos(angle) * 15, vy: Math.sin(angle) * 15, owner: f, color: ultColor, dmg: 20 }, this));
-      }
-    } else if (f.data.id === "shadow") {
-      for (let i = 0; i < 6; i++) {
-        const cx = 100 + Math.random() * (window.innerWidth - 200);
-        this.projectiles.push(new Projectile({ x: cx, y: 0, vx: (target.x - cx) * 0.05, owner: f, color: ultColor, dmg: 8, isClone: true }, this));
-      }
-    } else if (f.data.id === "storm") {
-      [-80, 0, 80].forEach((off, i) => {
-        f.pendingActions.push({
-          delay: i * 150,
-          execute: () => {
-            const bolt = document.createElement("div");
-            bolt.style = `position:absolute; left:0px; bottom:25%; transform:translate3d(${target.x + off}px, 0, 0); width:8px; height:100vh; background:#fff; box-shadow:0 0 20px ${ultColor}; z-index:150`;
-            this.arenaEl.appendChild(bolt);
-            setTimeout(() => bolt.remove(), 100);
-            if (Math.abs(target.x - (target.x + off)) < 60) target.takeDamage(22, 0);
-          },
-        });
-      });
-    }
+    return this.activateAbility(f, target, true);
   }
 
-  updateProjectiles(dt) {
-    this.projectiles = this.projectiles.filter((p) => {
-      p.update(dt);
-      return p.active;
-    });
+  activateAbility(f, target, ultimate) {
+    const cost = ultimate ? 3 : 1;
+    if (f.power < cost || f.cooldowns.attack > 0 || f.cooldowns.hurt > 0 ||
+        f.cooldowns.actionLock > 0 || !f.combatState.canAct || (ultimate && f.cooldowns.ult > 0)) return false;
+    f.power -= cost;
+    f.isBlocking = false;
+    f.dir = target.x >= f.x ? 1 : -1;
+    f.cooldowns.attack = ultimate ? 1050 : 800;
+    f.cooldowns.actionLock = ultimate ? 620 : 400;
+    if (ultimate) f.cooldowns.ult = 25000;
+    f.setState("special_charge");
+    this.playSound("special");
+    if (ultimate) this.onShake?.(8);
+    const color = f.weaponColor || f.data.color;
+    this.spawnParticles(f.x, f.y + 80, ultimate ? 32 : 16, color, 60, 400);
+    f.spawnDmg(f.x, f.y + 145, ultimate ? f.data.ultimate : f.data.special, color);
+    castAbility(this, f, target, ultimate);
+    return true;
   }
 
   updateTrails() {
-    document.querySelectorAll(".trail-ghost").forEach((el) => el.remove());
-    this.trails = this.trails.filter((t) => {
-      t.life -= 0.1;
-      if (t.life <= 0) return false;
-      const el = document.createElement("div");
-      el.className = "trail-ghost fighter-inner";
-      el.innerHTML = `<div class="sprite-part s-head"></div><div class="sprite-part s-body"></div><div class="sprite-part s-arm-l"></div><div class="sprite-part s-arm-r"></div><div class="sprite-part s-leg-l"></div><div class="sprite-part s-leg-r"></div>`;
-      el.style = `position:absolute; left:0px; bottom:25%; transform:translate3d(${t.x - 50}px, ${-t.y}px, 0) scaleX(${t.dir}); color:${t.color}; opacity:${t.life * 0.3}`;
-      this.arenaEl.appendChild(el);
-      return true;
+    this.trails = this.trails.filter(t => {
+      if (!t.el) {
+        const el = document.createElement("div");
+        el.className = "trail-ghost";
+        el.innerHTML = createFighterHTML(t.data);
+        el.style.cssText = `position:absolute; width:100px; height:160px; left:${t.x - 50}px; bottom:calc(25% + ${t.y}px); transform:scaleX(${t.dir}); pointer-events:none;`;
+        this.arenaEl.appendChild(el);
+        t.el = el;
+      }
+      t.life -= 0.15;
+      t.el.style.opacity = Math.max(0, t.life) * 0.3;
+      if (t.life <= 0) t.el.remove();
+      return t.life > 0;
     });
   }
 
@@ -421,6 +367,7 @@ class Engine {
             wEl.className = "equipped-weapon";
             wEl.innerText = f.weapon.icon;
             wEl.style.color = f.weaponColor || f.weapon.color;
+            f.el.querySelector(".equipped-weapon")?.remove();
             f.el.appendChild(wEl);
           }
         });
@@ -429,68 +376,65 @@ class Engine {
   }
 
   gameEnd(result) {
-    this.gameActive = false;
-    this.audioManager.stopBGM();
-    if (this.onGameEnd) this.onGameEnd(result, this.p1, this.cpu, this.timer);
+    if (!this.gameActive) return;
+    this.stopBattle();
+    this.onGameEnd?.(result, this.p1, this.cpu, this.timer);
   }
 
   triggerKO(loser) {
-    this.gameSpeed = 0.1;
-    setTimeout(() => {
-      if (loser === this.cpu && this.matchHealth === "unlimited") {
-        this.survivalKills = (this.survivalKills || 0) + 1;
-        const cpuChar = this.cpu.data;
-        const newHp = 100 + this.survivalKills * 50;
+    if (!this.gameActive || this.ko) return;
+    this.ko = { loser, time: 750 };
+    if (loser === this.cpu && this.matchHealth === "unlimited") this.survivalKills++;
 
-        this.cpu = new Character(cpuChar, false, this, {
-          maxHp: newHp, startPower: 0, spdMult: 1 + this.survivalKills * 0.1, skinId: "default"
-        });
-        this.cpu.hp = newHp;
-        this.cpu.y = 800;
-        this.cpu.vy = -20;
+    this.announce("K.O.!", 750);
+  }
 
-        this.spawnParticles(this.cpu.x, 0, 50, "#ff0000", 200, 1000);
-        if (this.onShake) this.onShake(20);
-        this.playSound("ko");
+  announce(text, duration) {
+    const el = document.getElementById("round-text");
+    if (!el) return;
+    el.textContent = text;
+    el.style.opacity = 1;
+    el.style.transform = "";
+    this.announcementTime = duration;
+  }
 
-        this.aiController = new AIController(this.cpu, this.p1, this);
-        this.gameSpeed = 1;
+  finishKO() {
+    const loser = this.ko.loser;
+    this.ko = null;
+    const survival = this.matchHealth === "unlimited";
+    if (loser === this.p1) {
+      this.gameEnd(survival ? "SURVIVAL_END" : "DEFEAT");
+      return;
+    }
+    if (!survival && (this.difficulty !== "expert" || this.bossPhase)) {
+      this.gameEnd("VICTORY");
+      return;
+    }
 
-        const rt = document.getElementById("round-text");
-        rt.innerText = `WAVE ${this.survivalKills + 1}`;
-        rt.style.opacity = 1;
-        rt.style.transform = "scale(2)";
-        rt.style.color = "#ff0000";
-        setTimeout(() => { rt.style.transform = "scale(1)"; }, 50);
-        setTimeout(() => { rt.style.opacity = 0; rt.style.color = "#fff"; }, 2000);
-      } else if (loser === this.cpu && this.difficulty === "expert" && !this.bossPhase) {
-        this.bossPhase = true;
-        const bossChar = this.cpu.data;
-        this.cpu = new Character(bossChar, false, this, {
-          maxHp: parseInt(this.matchHealth) * 2, startPower: 4, spdMult: 1.5, skinId: "default"
-        });
-        this.cpu.hp = parseInt(this.matchHealth) * 2;
-        this.cpu.y = 800;
-        this.cpu.vy = -20;
+    this.nextRound(survival);
+  }
 
-        this.spawnParticles(this.cpu.x, 0, 80, "#ff0000", 300, 1500);
-        if (this.onShake) this.onShake(30);
-        this.playSound("ko");
-
-        this.aiController = new AIController(this.cpu, this.p1, this);
-        this.gameSpeed = 1;
-
-        const rt = document.getElementById("round-text");
-        rt.innerText = "FINAL BOSS!";
-        rt.style.opacity = 1;
-        rt.style.transform = "scale(2)";
-        rt.style.color = "#ff0000";
-        setTimeout(() => { rt.style.transform = "scale(1)"; }, 50);
-        setTimeout(() => { rt.style.opacity = 0; rt.style.color = "#fff"; }, 2500);
-      } else {
-        this.gameEnd(loser.isPlayer ? "DEFEAT" : "VICTORY");
-      }
-    }, 1500);
+  nextRound(survival) {
+    this.clearAttacks();
+    this.resetInput();
+    this.p1.x = this.arenaEl.offsetWidth * 0.2;
+    this.p1.y = this.p1.vx = this.p1.vy = 0;
+    this.p1.combatState = new CombatState(this.p1, this);
+    this.p1.combo = 0;
+    this.onComboUpdate?.(0);
+    if (survival) {
+      const next = CHARACTERS.filter(c => c.id !== this.cpu.data.id);
+      const cpuChar = next[Math.floor(Math.random() * next.length)];
+      this.spawnOpponent(cpuChar, 100 + 25 * this.survivalKills, 0, 1 + Math.min(0.5, this.survivalKills * 0.05));
+      this.p1.hp = Math.min(this.p1.maxHp, this.p1.hp + this.p1.maxHp * 0.15);
+      this.announce(`WAVE ${this.survivalKills + 1}`, 1200);
+    } else {
+      this.bossPhase = true;
+      this.spawnOpponent(this.cpu.data, Number(this.matchHealth) * 2, 4, 1.25);
+      this.timer = Math.max(60, this.timer);
+      this.announce("FINAL BOSS!", 1200);
+    }
+    this.spawnParticles(this.cpu.x, 80, 30, this.cpu.data.color, 80, 500);
   }
 
   playSound(type) {

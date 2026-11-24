@@ -23,6 +23,7 @@ export class CombatState {
 
     /** Current move being executed (from MOVE_DATA) */
     this.activeMove = null;
+    this.extraReach = 0;
 
     /** Frame counters (in 60fps frames) */
     this.framesLeft = 0;
@@ -67,6 +68,9 @@ export class CombatState {
       return false;
     }
 
+    // The last katana charge is consumed at startup. Its reach belongs to this swing.
+    this.extraReach = this.fighter.weapon?.id === "katana" ? 45 : 0;
+    this.moveId = moveId;
     this.activeMove = move;
     this._transition(FighterState.STARTUP, move.startupFrames);
     return true;
@@ -175,7 +179,8 @@ export class CombatState {
    */
   getHitbox() {
     if (!this.isHitboxLive || !this.activeMove) return null;
-    const { xOffset, yOffset, width, height } = this.activeMove.hitbox;
+    const { xOffset, yOffset, width: baseWidth, height } = this.activeMove.hitbox;
+    const width = baseWidth + this.extraReach;
     return {
       x: this.fighter.x + (this.fighter.dir > 0 ? xOffset : -(xOffset + width)),
       y: this.fighter.y + yOffset,
@@ -220,12 +225,9 @@ export class CombatState {
       case FighterState.RECOVERY: {
         // Check input buffer — execute buffered action immediately on frame 1
         const buffered = this.inputBuffer.consume();
-        if (buffered) {
-          this.beginAttack(buffered);
-        } else {
-          this.activeMove = null;
-          this._transition(FighterState.IDLE, 0);
-        }
+        this.activeMove = null;
+        this._transition(FighterState.IDLE, 0);
+        if (buffered) this.beginAttack(buffered);
         break;
       }
 
@@ -265,7 +267,7 @@ export class CombatState {
  */
 export function resolveCollision(attacker, defender, moveId, engine) {
   const move = MOVE_DATA[moveId];
-  if (!move) return "whiff";
+  if (!move || defender.dashActive > 0 || defender.hp === 0) return "whiff";
 
   const acs = attacker.combatState;
   const dcs = defender.combatState;
@@ -275,6 +277,7 @@ export function resolveCollision(attacker, defender, moveId, engine) {
   const hurtbox = dcs?.getHurtbox();
 
   // If CombatState is attached, use precise box check; otherwise fall through
+  if ((acs && !hitbox) || (dcs && !hurtbox)) return "whiff";
   if (hitbox && hurtbox) {
     const overlap =
       hitbox.x < hurtbox.x + hurtbox.width &&
@@ -293,21 +296,17 @@ export function resolveCollision(attacker, defender, moveId, engine) {
       : "hit";
 
   // ── Calculate final damage ────────────────────────────────────────────────
-  let dmg = move.damage;
-
-  if (result === "blocked") {
-    dmg *= 0.25; // Chip damage on block
-  } else if (result === "juggled") {
+  let dmg = move.damage * (1 + ((attacker.data?.atk ?? 7) - 7) * 0.05);
+  if (result === "juggled") {
     // Juggle gravity scaling reduces damage on successive air hits
-    const scale = dcs ? 1 / dcs.juggleGravity : 0.7;
+    const scale = 1 / dcs.juggleGravity;
     dmg *= Math.max(0.2, scale);
   }
 
   // ── Apply knockback ───────────────────────────────────────────────────────
-  let kb = move.knockback * attacker.dir;
-  if (result === "blocked") kb *= 0.4;
+  const kb = move.knockback * attacker.dir;
   if (result === "launched" || result === "juggled") {
-    defender.vy = -16 / (dcs?.juggleGravity ?? 1); // Upward launch, scaled
+    defender.vy = -16 / dcs.juggleGravity; // Upward launch, scaled
   }
 
   // ── Hitstop — freeze both fighters ───────────────────────────────────────
@@ -317,12 +316,7 @@ export function resolveCollision(attacker, defender, moveId, engine) {
   if (acs) acs.applyHitstop(hitstopFrames);
   if (dcs) dcs.applyHitstop(hitstopFrames);
 
-  // Freeze velocity during hitstop (Engine will not move fighters for N frames)
-  attacker._hitstopFrames = hitstopFrames;
-  defender._hitstopFrames = hitstopFrames;
-
-  // ── Delegate damage + VFX to existing Fighter.takeDamage ─────────────────
-  defender.takeDamage(dmg, kb);
+  defender.takeDamage(dmg, kb, false, result === "blocked");
 
   // ── Screen Shake (weight-mapped to hitstop) ───────────────────────────────
   if (engine?.onShake) {

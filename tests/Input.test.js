@@ -1,50 +1,232 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { KeyboardInput } from "../src/input/KeyboardInput.js";
+import { TouchInput } from "../src/input/TouchInput.js";
 
-describe("KeyboardInput", () => {
-  let keyboard;
+function key(type, code, options = {}, target = window) {
+  const event = new KeyboardEvent(type, { code, bubbles: true, cancelable: true, ...options });
+  target.dispatchEvent(event);
+  return event;
+}
+
+function pointer(element, type, id, x = 0, y = 0) {
+  const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y });
+  Object.defineProperty(event, "pointerId", { value: id });
+  element.dispatchEvent(event);
+}
+
+describe("Battle input", () => {
   let engine;
+  let keyboard;
+  let touch;
 
   beforeEach(() => {
-    engine = { togglePause: vi.fn() };
+    engine = { gameActive: true, paused: false, togglePause: vi.fn() };
     keyboard = new KeyboardInput(engine);
-    // Mock addEventListener/removeEventListener
-    vi.spyOn(window, 'addEventListener').mockImplementation(() => {});
-    vi.spyOn(window, 'removeEventListener').mockImplementation(() => {});
+    keyboard.init();
+    touch = new TouchInput(engine, keyboard);
   });
 
   afterEach(() => {
+    touch.destroy();
+    keyboard.destroy();
+    document.body.replaceChildren();
     vi.restoreAllMocks();
   });
 
-  it("should initialize listeners", () => {
-    keyboard.init();
-    expect(window.addEventListener).toHaveBeenCalledWith("keydown", expect.any(Function));
-    expect(window.addEventListener).toHaveBeenCalledWith("keyup", expect.any(Function));
-  });
-
-  it("should update keyState on keydown", () => {
-    const event = { code: "ArrowLeft", preventDefault: vi.fn() };
-    keyboard.handleKeyDown(event);
+  it("tracks held movement and buffers brief attack presses for one simulation step", () => {
+    expect(key("keydown", "ArrowLeft").defaultPrevented).toBe(true);
     expect(keyboard.isPressed("ArrowLeft")).toBe(true);
-  });
-
-  it("should update keyState on keyup", () => {
-    keyboard.setKeyState("ArrowLeft", true);
-    const event = { code: "ArrowLeft" };
-    keyboard.handleKeyUp(event);
+    key("keyup", "ArrowLeft");
     expect(keyboard.isPressed("ArrowLeft")).toBe(false);
+
+    key("keydown", "KeyZ");
+    key("keyup", "KeyZ");
+    expect(keyboard.consumePress("KeyZ")).toBe(true);
+    expect(keyboard.consumePress("KeyZ")).toBe(false);
+
+    key("keydown", "KeyX");
+    keyboard.advance(400);
+    expect(keyboard.consumePress("KeyX")).toBe(false);
   });
 
-  it("should prevent default for specific keys", () => {
-    const event = { code: "ArrowUp", preventDefault: vi.fn() };
-    keyboard.handleKeyDown(event);
-    expect(event.preventDefault).toHaveBeenCalled();
+  it("retains a tap through a slow browser frame until the match gets a chance to act", () => {
+    const now = vi.spyOn(performance, "now").mockReturnValue(100);
+    key("keydown", "Space");
+    key("keyup", "Space");
+    now.mockReturnValue(400);
+    keyboard.advance(1000 / 60);
+    expect(keyboard.consumePress("Space")).toBe(true);
   });
 
-  it("should toggle pause on Escape", () => {
-    const event = { code: "Escape", preventDefault: vi.fn() };
-    keyboard.handleKeyDown(event);
-    expect(engine.togglePause).toHaveBeenCalled();
+  it("keeps menu navigation and browser shortcuts available", () => {
+    engine.gameActive = false;
+    expect(key("keydown", "Space").defaultPrevented).toBe(false);
+    expect(key("keydown", "Escape").defaultPrevented).toBe(false);
+    expect(engine.togglePause).not.toHaveBeenCalled();
+
+    engine.gameActive = true;
+    expect(key("keydown", "KeyX", { ctrlKey: true }).defaultPrevented).toBe(false);
+    const button = document.createElement("button");
+    document.body.append(button);
+    expect(key("keydown", "Space", {}, button).defaultPrevented).toBe(false);
+    expect(keyboard.isPressed("Space")).toBe(false);
+  });
+
+  it("handles Escape once per press and allows resuming while paused", () => {
+    expect(key("keydown", "Escape").defaultPrevented).toBe(true);
+    key("keydown", "Escape", { repeat: true });
+    expect(engine.togglePause).toHaveBeenCalledTimes(1);
+    engine.paused = true;
+    key("keydown", "KeyC");
+    expect(keyboard.isPressed("KeyC")).toBe(false);
+    key("keydown", "Escape");
+    expect(engine.togglePause).toHaveBeenCalledTimes(2);
+  });
+
+  it("clears held and buffered inputs when focus is lost and pauses a hidden battle", () => {
+    key("keydown", "ArrowRight");
+    key("keydown", "KeyX");
+    window.dispatchEvent(new Event("blur"));
+    expect(keyboard.isPressed("ArrowRight")).toBe(false);
+    expect(keyboard.consumePress("KeyX")).toBe(false);
+    key("keydown", "ArrowRight", { repeat: true });
+    expect(keyboard.isPressed("ArrowRight")).toBe(false);
+
+    vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(engine.togglePause).toHaveBeenCalledOnce();
+  });
+
+  it.each(["", "portrait-"])("allows simultaneous joystick and action input in the '%s' layout", (prefix) => {
+    document.body.innerHTML = `<div id="${prefix}joystick-zone">
+      <div id="${prefix}joystick-outer"><div id="${prefix}joystick-inner"></div></div>
+      </div><button class="touch-btn" data-key="KeyV">Power</button>`;
+    const zone = document.getElementById(prefix + "joystick-zone");
+    const outer = document.getElementById(prefix + "joystick-outer");
+    const button = document.querySelector("button");
+    vi.spyOn(outer, "getBoundingClientRect").mockReturnValue({ left: 100, top: 100, width: 100, height: 100 });
+    touch.init();
+    pointer(zone, "pointerdown", 1, 195, 150);
+    pointer(button, "pointerdown", 2);
+    pointer(zone, "pointerdown", 3, 110, 150);
+    expect(keyboard.isPressed("ArrowRight")).toBe(true);
+    expect(keyboard.isPressed("KeyV")).toBe(true);
+    pointer(button, "pointerup", 2);
+    expect(keyboard.consumeRelease("KeyV")).toBe(true);
+    pointer(zone, "pointermove", 1, 150, 100);
+    expect(keyboard.isPressed("ArrowUp")).toBe(true);
+    pointer(zone, "pointercancel", 1);
+    expect(keyboard.isPressed("ArrowUp")).toBe(false);
+    expect(keyboard.isPressed("ArrowRight")).toBe(false);
+  });
+
+  it("keeps keyboard and touch holds independent and clears cancelled touch gestures", () => {
+    document.body.innerHTML = '<button class="touch-btn" data-key="KeyV">Power</button>';
+    const button = document.querySelector("button");
+    touch.init();
+
+    key("keydown", "KeyV");
+    pointer(button, "pointerdown", 1);
+    pointer(button, "pointerup", 1);
+    expect(keyboard.isPressed("KeyV")).toBe(true);
+    expect(keyboard.consumeRelease("KeyV")).toBe(false);
+    key("keyup", "KeyV");
+    expect(keyboard.consumeRelease("KeyV")).toBe(true);
+
+    pointer(button, "pointerdown", 2);
+    window.dispatchEvent(new Event("orientationchange"));
+    expect(button.classList.contains("pressed")).toBe(false);
+    expect(keyboard.isPressed("KeyV")).toBe(false);
+    expect(keyboard.consumeRelease("KeyV")).toBe(false);
+    expect(keyboard.consumePress("KeyV")).toBe(false);
+
+    engine.paused = true;
+    pointer(button, "pointerdown", 3);
+    expect(keyboard.isPressed("KeyV")).toBe(false);
+  });
+
+  it("keeps focused text fields, consumed events and unrelated keys out of combat", () => {
+    const editor = document.createElement("textarea");
+    document.body.append(editor);
+    expect(key("keydown", "KeyZ", {}, editor).defaultPrevented).toBe(false);
+    editor.addEventListener("keydown", (event) => event.preventDefault(), { once: true });
+    key("keydown", "KeyZ", {}, editor);
+    for (const modifier of ["metaKey", "altKey"]) {
+      expect(key("keydown", "KeyZ", { [modifier]: true }).defaultPrevented).toBe(false);
+    }
+    expect(key("keydown", "KeyA").defaultPrevented).toBe(false);
+    expect(keyboard.consumePress("KeyZ")).toBe(false);
+  });
+
+  it("routes pause through the UI once and leaves paused or inactive battles alone when hidden", () => {
+    keyboard.init();
+    vi.stubGlobal("togglePause", vi.fn());
+    try {
+      key("keydown", "Escape");
+      expect(window.togglePause).toHaveBeenCalledOnce();
+      const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(false);
+      document.dispatchEvent(new Event("visibilitychange"));
+      hidden.mockReturnValue(true);
+      engine.paused = true;
+      document.dispatchEvent(new Event("visibilitychange"));
+      engine.gameActive = false;
+      document.dispatchEvent(new Event("visibilitychange"));
+      expect(window.togglePause).toHaveBeenCalledOnce();
+      expect(engine.togglePause).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("releases browser pointer capture, while ignoring events from other fingers", () => {
+    document.body.innerHTML = '<button class="touch-btn" data-key="KeyV">Power</button>';
+    const control = document.querySelector("button");
+    control.setPointerCapture = vi.fn();
+    control.hasPointerCapture = vi.fn(() => true);
+    control.releasePointerCapture = vi.fn();
+    touch.init();
+    touch.init();
+    pointer(control, "pointerdown", 4);
+    pointer(control, "pointermove", 5);
+    pointer(control, "pointerup", 5);
+    expect(keyboard.isPressed("KeyV")).toBe(true);
+    expect(control.setPointerCapture).toHaveBeenCalledExactlyOnceWith(4);
+
+    // Cancelling a touch while a keyboard is holding the same action must preserve that hold.
+    key("keydown", "KeyV");
+    pointer(control, "lostpointercapture", 4);
+    expect(control.releasePointerCapture).toHaveBeenCalledExactlyOnceWith(4);
+    expect(keyboard.isPressed("KeyV")).toBe(true);
+    expect(keyboard.consumeRelease("KeyV")).toBe(false);
+    key("keyup", "KeyV");
+    expect(keyboard.consumeRelease("KeyV")).toBe(true);
+  });
+
+  it("releases touches on blur or hiding and ignores a joystick that has no layout yet", () => {
+    document.body.innerHTML = '<div id="joystick-zone"><div id="joystick-outer"><div id="joystick-inner"></div></div></div>' +
+      '<button class="touch-btn" data-key="KeyC">Block</button>';
+    const control = document.querySelector("button");
+    const zone = document.getElementById("joystick-zone");
+    touch.init();
+    // jsdom reports a zero-size bounding box, like a hidden portrait panel.
+    pointer(zone, "pointerdown", 1, 10, 10);
+    expect(keyboard.isPressed("ArrowRight")).toBe(false);
+    expect(document.getElementById("joystick-inner").style.transform).toBe("");
+    pointer(control, "pointerdown", 2);
+    const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(false);
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(control.classList.contains("pressed")).toBe(true);
+    hidden.mockReturnValue(true);
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(control.classList.contains("pressed")).toBe(false);
+    pointer(control, "pointerdown", 3);
+    window.dispatchEvent(new Event("blur"));
+    expect(control.classList.contains("pressed")).toBe(false);
+  });
+
+  it("detaches input handlers cleanly", () => {
+    keyboard.destroy();
+    key("keydown", "ArrowLeft");
+    expect(keyboard.isPressed("ArrowLeft")).toBe(false);
   });
 });

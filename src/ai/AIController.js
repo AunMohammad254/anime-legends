@@ -1,127 +1,92 @@
 import { getDifficultyParams } from "./DifficultyConfig.js";
 
-/**
- * AIController.js
- * Handles the state machine and decision logic for the CPU opponent.
- */
 export class AIController {
   constructor(cpu, p1, engine) {
     this.cpu = cpu;
     this.p1 = p1;
     this.engine = engine;
     this.state = "APPROACH";
-    this.execAt = 0;
+    this.wait = 0;
+    this.retreatCooldown = 0;
   }
 
-  update() {
-    if (Date.now() < this.execAt || this.cpu.state === "ko") return;
-    const dist = Math.abs(this.p1.x - this.cpu.x);
-    
+  update(dt = 1000 / 60) {
+    const cpu = this.cpu;
+    const player = this.p1;
+    if (!cpu.hp || !player.hp) return;
+    this.wait -= dt;
+    this.retreatCooldown = Math.max(0, this.retreatCooldown - dt);
+    if (this.wait > 0) return;
+    if (cpu.cooldowns.hurt > 0 || cpu.cooldowns.actionLock > 0 || !cpu.combatState.canAct) return;
+
     const params = getDifficultyParams(this.engine.difficulty);
-    const delay = params.delayBase + Math.random() * (params.delayBase * 0.5);
+    const delay = params.delayBase * (1 + Math.random() * 0.5);
+    const dist = Math.abs(player.x - cpu.x);
+    const face = player.x >= cpu.x ? 1 : -1;
+    cpu.dir = face;
+    cpu.isBlocking = false;
 
-    if (this.engine.activeWeaponDrop && this.cpu.hp < this.cpu.maxHp * 0.7) {
-      const wDist = Math.abs(this.engine.activeWeaponDrop.x - this.cpu.x);
-      const pWDist = Math.abs(this.engine.activeWeaponDrop.x - this.p1.x);
-      if (wDist < pWDist) {
-        this.cpu.dir = this.engine.activeWeaponDrop.x > this.cpu.x ? 1 : -1;
-        this.cpu.vx = this.cpu.dir * params.speed;
-        this.cpu.setState("run");
-        this.execAt = Date.now() + 100;
-        return;
-      }
+    if (this.state === "BLOCK" || this.state === "RETREAT") this.state = "APPROACH";
+    const drop = this.engine.activeWeaponDrop;
+    if (!cpu.weapon && drop && cpu.hp < cpu.maxHp * 0.7 && Math.abs(drop.x - cpu.x) < Math.abs(drop.x - player.x)) {
+      this.moveToward(drop.x, params.speed);
+      return;
     }
 
-    switch (this.state) {
-      case "APPROACH":
-        if (dist > 120) {
-          this.cpu.dir = this.p1.x > this.cpu.x ? 1 : -1;
-          this.cpu.vx = this.cpu.dir * params.speed;
-          this.cpu.setState("run");
-          this.execAt = Date.now() + 100;
-        } else {
-          this.state = "ATTACK";
-          this.execAt = Date.now() + delay;
-        }
-        break;
-      case "ATTACK":
-        if (
-          this.cpu.hp < this.cpu.maxHp * params.retreatHpThreshold &&
-          this.engine.difficulty !== "expert"
-        ) {
-          this.state = "RETREAT";
-          this.execAt = Date.now();
-          break;
-        }
-        if (
-          this.cpu.power >= 3 &&
-          this.cpu.cooldowns.ult <= 0 &&
-          this.cpu.hp < this.cpu.maxHp * 0.5
-        ) {
-          this.state = "ULTIMATE";
-          this.execAt = Date.now();
-          break;
-        }
-        if (
-          this.cpu.power >= 1 &&
-          Math.random() < params.specialChance
-        ) {
-          this.state = "SPECIAL";
-          this.execAt = Date.now();
-          break;
-        }
-        if (dist <= 130) {
-          this.cpu.vx = 0;
-          const r = Math.random();
-
-          if (r < params.lightWeight) {
-            this.engine.attack(this.cpu, this.p1, "attack_light");
-          } else if (r < params.lightWeight + params.heavyWeight) {
-            this.engine.attack(this.cpu, this.p1, "attack_heavy");
-          } else {
-            this.state = "BLOCK";
-            this.execAt = Date.now();
-            return;
-          }
-        }
-        this.state = "APPROACH";
-        this.execAt = Date.now() + delay * 2;
-        break;
-      case "RETREAT":
-        this.cpu.dir = this.p1.x > this.cpu.x ? -1 : 1;
-        this.cpu.vx = (this.p1.x > this.cpu.x ? -1 : 1) * 3;
-        this.cpu.setState("walk");
-        if (dist > 200) this.state = "APPROACH";
-        if (this.p1.state.startsWith("attack") && Math.random() < 0.5)
-          this.state = "BLOCK";
-        this.execAt = Date.now() + 200;
-        break;
-      case "BLOCK": {
-        this.cpu.isBlocking = true;
-        this.cpu.setState("block");
-        const bTime = 400 + Math.random() * 400;
-        this.execAt = Date.now() + bTime;
-        this.cpu.pendingActions.push({
-          delay: bTime,
-          execute: () => {
-            if (this.engine.gameActive) {
-              this.cpu.isBlocking = false;
-              this.state = "APPROACH";
-            }
-          },
-        });
-        break;
+    if (this.state === "APPROACH") {
+      if (dist > 106) {
+        this.moveToward(player.x, params.speed);
+      } else {
+        cpu.vx = 0;
+        cpu.setState(`idle_${cpu.data.id}`);
+        this.state = "ATTACK";
+        this.wait = delay;
       }
-      case "SPECIAL":
-        this.engine.useSpecial(this.cpu, this.p1);
-        this.state = "APPROACH";
-        this.execAt = Date.now() + 1000;
-        break;
-      case "ULTIMATE":
-        this.engine.useUltimate(this.cpu, this.p1);
-        this.state = "RETREAT";
-        this.execAt = Date.now() + 2000;
-        break;
+      return;
     }
+
+    this.state = "APPROACH";
+    this.wait = delay;
+    if (cpu.power >= 3 && cpu.cooldowns.ult <= 0 && cpu.hp <= cpu.maxHp * 0.5) {
+      this.engine.useUltimate(cpu, player);
+      return;
+    }
+    if (cpu.power >= 1 && Math.random() < params.specialChance) {
+      this.engine.useSpecial(cpu, player);
+      return;
+    }
+    if (dist > 140) {
+      this.moveToward(player.x, params.speed);
+      return;
+    }
+    if (cpu.hp < cpu.maxHp * params.retreatHpThreshold && this.retreatCooldown <= 0) {
+      // One retreat at low health gives the player room to chase; the next exchange is forced.
+      this.state = "RETREAT";
+      this.retreatCooldown = 2500;
+      cpu.vx = -face * 7;
+      cpu.setState("walk");
+      this.wait = 220;
+      return;
+    }
+    if (player.y > cpu.y + 100 && cpu.y === 0) {
+      cpu.vy = -16;
+    }
+    const roll = Math.random();
+    if (roll < params.lightWeight) this.engine.attack(cpu, player, "attack_light");
+    else if (roll < params.lightWeight + params.heavyWeight) this.engine.attack(cpu, player, "attack_heavy");
+    else {
+      this.state = "BLOCK";
+      cpu.vx = 0;
+      cpu.isBlocking = true;
+      cpu.setState("block");
+      this.wait = 300 + Math.random() * 260;
+    }
+  }
+
+  moveToward(x, speed) {
+    this.cpu.dir = x >= this.cpu.x ? 1 : -1;
+    this.cpu.vx = this.cpu.dir * speed * this.cpu.spdMult;
+    this.cpu.setState("run");
+    this.wait = 60;
   }
 }

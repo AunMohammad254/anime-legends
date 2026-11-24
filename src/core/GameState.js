@@ -1,164 +1,231 @@
-/**
- * GameState.js
- * Event-driven state manager for Anime Legends.
- * Handles persistence and pub/sub events.
- */
+import { CHARACTERS, STAT_BOOSTS, WEAPON_SKINS } from "../../constants.js";
 
-class EventEmitter {
-  constructor() {
-    this.events = {};
-  }
-
-  on(event, callback) {
-    if (!this.events[event]) this.events[event] = [];
-    this.events[event].push(callback);
-  }
-
-  emit(event, data) {
-    if (this.events[event]) {
-      this.events[event].forEach((callback) => callback(data));
-    }
-  }
+function validAmount(value) {
+  return Number.isSafeInteger(value) && value >= 0;
 }
 
-export class GameState extends EventEmitter {
+function knownIds(value, catalog, initial = []) {
+  const saved = Array.isArray(value) ? value : [];
+  const ids = saved.filter((id) => catalog.some((item) => item.id === id));
+  return [...new Set([...initial, ...ids])];
+}
+
+function validScore(entry) {
+  return typeof entry?.name === "string" && entry.name.trim().length > 0
+    && typeof entry.date === "string" && validAmount(entry.score);
+}
+
+function topTen(entries) {
+  return entries.filter(validScore)
+    .map(({ name, score, date }) => ({ name, score, date }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 10);
+}
+
+function readProgress(saved) {
+  const unlockedSkins = knownIds(saved?.unlockedSkins, WEAPON_SKINS, ["default"]);
+  const activeBoosts = knownIds(saved?.activeBoosts, STAT_BOOSTS);
+  return {
+    spiritShards: validAmount(saved?.spiritShards) ? saved.spiritShards : 0,
+    unlockedCharacters: knownIds(saved?.unlockedCharacters, CHARACTERS, ["blaze"]),
+    unlockedSkins,
+    activeSkinId: unlockedSkins.includes(saved?.activeSkinId) ? saved.activeSkinId : "default",
+    // Earlier versions stored only the equipped boosts. Keep those usable after upgrading.
+    unlockedBoosts: knownIds(saved?.unlockedBoosts, STAT_BOOSTS, activeBoosts),
+    activeBoosts: activeBoosts.slice(-2),
+    highScores: topTen(Array.isArray(saved?.highScores) ? saved.highScores : []),
+  };
+}
+
+export class GameState {
   constructor() {
-    super();
+    this.events = new Map();
     this.storageKey = "anime_legends_save";
-    this.data = {
-      spiritShards: 0,
-      unlockedCharacters: ["blaze"],
-      unlockedSkins: ["default"],
-      activeSkinId: "default",
-      activeBoosts: [], // Array of boost IDs currently equipped
-      highScores: [],
-    };
+    this.data = readProgress();
+    this.lastSnapshot = null;
+    this.pendingSave = false;
     this.load();
   }
 
-  load() {
-    try {
-      const saved = localStorage.getItem(this.storageKey);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        this.data = { ...this.data, ...parsed };
+  on(event, callback) {
+    if (!this.events.has(event)) this.events.set(event, []);
+    this.events.get(event).push(callback);
+  }
 
-        // Migration: Ensure new fields exist
-        if (!this.data.unlockedSkins) this.data.unlockedSkins = ["default"];
-        if (!this.data.activeSkinId) this.data.activeSkinId = "default";
-        if (!this.data.activeBoosts) this.data.activeBoosts = [];
-      }
-    } catch (e) {
-      console.warn("GameState: Failed to load save data. Using defaults.", e);
+  emit(event, data) {
+    this.events.get(event)?.forEach((callback) => callback(data));
+  }
+
+  load() {
+    // Keep playing with the in-memory balance if a storage write failed.
+    if (this.pendingSave) return;
+    try {
+      const snapshot = localStorage.getItem(this.storageKey);
+      if (snapshot === this.lastSnapshot) return;
+      this.data = readProgress(JSON.parse(snapshot));
+      this.lastSnapshot = snapshot;
+    } catch {
+      return;
     }
+    this.emit("progressLoaded", this.data);
   }
 
   save() {
     try {
-      localStorage.setItem(this.storageKey, JSON.stringify(this.data));
-    } catch (e) {
-      console.error("GameState: Failed to save data.", e);
+      const snapshot = JSON.stringify(this.data);
+      localStorage.setItem(this.storageKey, snapshot);
+      this.lastSnapshot = snapshot;
+      this.pendingSave = false;
+      return true;
+    } catch {
+      const firstFailure = !this.pendingSave;
+      this.pendingSave = true;
+      if (firstFailure) this.emit("storageUnavailable");
+      return false;
     }
   }
 
-  // --- Currency Logic ---
   get spiritShards() {
     return this.data.spiritShards;
   }
 
   addShards(amount) {
-    this.data.spiritShards += amount;
+    this.load();
+    if (!validAmount(amount)) return false;
+    this.data.spiritShards = Math.min(Number.MAX_SAFE_INTEGER, this.spiritShards + amount);
     this.save();
-    this.emit("shardsChanged", this.data.spiritShards);
+    this.emit("shardsChanged", this.spiritShards);
+    return true;
   }
 
   spendShards(amount) {
-    if (this.data.spiritShards >= amount) {
-      this.data.spiritShards -= amount;
-      this.save();
-      this.emit("shardsChanged", this.data.spiritShards);
-      return true;
+    this.load();
+    if (!validAmount(amount) || amount > this.spiritShards) return false;
+    this.data.spiritShards -= amount;
+    this.save();
+    this.emit("shardsChanged", this.spiritShards);
+    return true;
+  }
+
+  isUnlocked(id) {
+    return this.data.unlockedCharacters.includes(id);
+  }
+
+  unlockCharacter(id) {
+    this.load();
+    if (!CHARACTERS.some((item) => item.id === id) || this.isUnlocked(id)) return false;
+    this.data.unlockedCharacters.push(id);
+    this.save();
+    this.emit("characterUnlocked", id);
+    return true;
+  }
+
+  isSkinUnlocked(id) {
+    return this.data.unlockedSkins.includes(id);
+  }
+
+  unlockSkin(id) {
+    this.load();
+    if (!WEAPON_SKINS.some((item) => item.id === id) || this.isSkinUnlocked(id)) return false;
+    this.data.unlockedSkins.push(id);
+    this.save();
+    this.emit("skinUnlocked", id);
+    return true;
+  }
+
+  setSkin(id) {
+    this.load();
+    if (!this.isSkinUnlocked(id)) return false;
+    this.data.activeSkinId = id;
+    this.save();
+    this.emit("skinChanged", id);
+    return true;
+  }
+
+  buyCharacter(id) {
+    this.load();
+    const fighter = CHARACTERS.find((item) => item.id === id);
+    if (!fighter || this.isUnlocked(id) || fighter.price > this.spiritShards) return false;
+    this.data.spiritShards -= fighter.price;
+    this.data.unlockedCharacters.push(id);
+    this.save();
+    this.emit("characterUnlocked", id);
+    this.emit("shardsChanged", this.spiritShards);
+    return true;
+  }
+
+  buySkin(id) {
+    this.load();
+    const skin = WEAPON_SKINS.find((item) => item.id === id);
+    if (!skin) return false;
+    const purchased = !this.isSkinUnlocked(id);
+    if (purchased) {
+      if (skin.price > this.spiritShards) return false;
+      this.data.spiritShards -= skin.price;
+      this.data.unlockedSkins.push(id);
     }
-    return false;
-  }
-
-  // --- Character Logic ---
-  isUnlocked(charId) {
-    return this.data.unlockedCharacters.includes(charId);
-  }
-
-  unlockCharacter(charId) {
-    if (!this.isUnlocked(charId)) {
-      this.data.unlockedCharacters.push(charId);
-      this.save();
-      this.emit("characterUnlocked", charId);
-      return true;
+    this.data.activeSkinId = id;
+    this.save();
+    if (purchased) {
+      this.emit("skinUnlocked", id);
+      this.emit("shardsChanged", this.spiritShards);
     }
-    return false;
+    this.emit("skinChanged", id);
+    return true;
   }
 
-  // --- Skin Logic ---
-  isSkinUnlocked(skinId) {
-    return this.data.unlockedSkins.includes(skinId);
+  isBoostUnlocked(id) {
+    return this.data.unlockedBoosts.includes(id);
   }
 
-  unlockSkin(skinId) {
-    if (!this.isSkinUnlocked(skinId)) {
-      this.data.unlockedSkins.push(skinId);
-      this.save();
-      this.emit("skinUnlocked", skinId);
-      return true;
+  isBoostActive(id) {
+    return this.data.activeBoosts.includes(id);
+  }
+
+  toggleBoost(id) {
+    this.load();
+    const boost = STAT_BOOSTS.find((item) => item.id === id);
+    if (!boost) return false;
+    const purchased = !this.isBoostUnlocked(id);
+    if (purchased) {
+      if (boost.price > this.spiritShards) return false;
+      this.data.spiritShards -= boost.price;
+      this.data.unlockedBoosts.push(id);
     }
-    return false;
-  }
-
-  setSkin(skinId) {
-    if (this.isSkinUnlocked(skinId)) {
-      this.data.activeSkinId = skinId;
-      this.save();
-      this.emit("skinChanged", skinId);
-    }
-  }
-
-  // --- Boost Logic ---
-  isBoostActive(boostId) {
-    return this.data.activeBoosts.includes(boostId);
-  }
-
-  toggleBoost(boostId) {
-    const index = this.data.activeBoosts.indexOf(boostId);
-    if (index === -1) {
-      // Cap at 2 active boosts for balance
-      if (this.data.activeBoosts.length >= 2) {
-        this.data.activeBoosts.shift();
-      }
-      this.data.activeBoosts.push(boostId);
+    if (this.isBoostActive(id)) {
+      this.data.activeBoosts = this.data.activeBoosts.filter((active) => active !== id);
     } else {
-      this.data.activeBoosts.splice(index, 1);
+      this.data.activeBoosts = [...this.data.activeBoosts, id].slice(-2);
     }
     this.save();
+    if (purchased) this.emit("shardsChanged", this.spiritShards);
     this.emit("boostsUpdated", this.data.activeBoosts);
+    return true;
   }
 
-  // --- Score Logic ---
-  addScore(score) {
-    this.data.highScores.push(score);
-    this.data.highScores.sort((a, b) => b.score - a.score);
-    this.data.highScores = this.data.highScores.slice(0, 10);
+  addScore(entry) {
+    this.load();
+    if (!validScore(entry)) return false;
+    this.data.highScores = topTen([...this.data.highScores, entry]);
     this.save();
     this.emit("scoresUpdated", this.data.highScores);
+    return true;
   }
 
-  // --- Utility ---
+  recordBattle(entry) {
+    this.load();
+    if (!validScore(entry)) return 0;
+    const reward = Math.min(Math.floor(entry.score / 100), Number.MAX_SAFE_INTEGER - this.spiritShards);
+    this.data.spiritShards += reward;
+    this.data.highScores = topTen([...this.data.highScores, entry]);
+    this.save();
+    this.emit("scoresUpdated", this.data.highScores);
+    this.emit("shardsChanged", this.spiritShards);
+    return reward;
+  }
+
   clear() {
-    this.data = {
-      spiritShards: 0,
-      unlockedCharacters: ["blaze"],
-      unlockedSkins: ["default"],
-      activeSkinId: "default",
-      activeBoosts: [],
-      highScores: [],
-    };
+    this.data = readProgress();
     this.save();
     this.emit("stateCleared");
   }
