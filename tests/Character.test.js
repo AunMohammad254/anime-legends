@@ -68,4 +68,103 @@ describe("Character in the battle arena", () => {
     fighter.update(16, enemy);
     expect(fighter.x).toBe(45);
   });
+
+  function choose(id) {
+    return new Character(CHARACTERS.find(c => c.id === id), true, engine);
+  }
+
+  it("separates overlapped opponents in consistent directions and keeps jumps in view", () => {
+    for (const actor of [fighter, enemy]) {
+      const opponent = actor === fighter ? enemy : fighter;
+      actor.x = opponent.x = 200;
+      actor.update(16, opponent);
+      expect(Math.sign(actor.x - opponent.x)).toBe(actor.isPlayer ? -1 : 1);
+    }
+    fighter.vy = -300;
+    fighter.update(16, enemy);
+    expect(fighter.y + 160).toBeLessThanOrEqual(engine.arenaEl.offsetHeight * .75);
+    expect(fighter.vy).toBe(0);
+    fighter.update(16, enemy);
+    expect(fighter.state).toBe("jump_fall");
+  });
+
+  it("stops pending follow-up hits and passive damage when the first hit ends the round", () => {
+    fighter.dashActive = 100;
+    const followUp = vi.fn();
+    fighter.pendingActions.push({ delay: 0, execute: () => enemy.takeDamage(200) }, {delay: 1, execute: followUp});
+    fighter.update(16, enemy);
+    expect(followUp).not.toHaveBeenCalled();
+    expect(engine.triggerKO).toHaveBeenCalledOnce();
+    enemy.setState("run");
+    const x = enemy.x;
+    enemy.update(16, fighter);
+    expect(enemy.state).toBe("ko");
+    expect(enemy.x).toBe(x);
+  });
+
+  it("uses baseline stats for a fighter without a sprite or difficulty modifiers", () => {
+    fighter.el.remove();
+    engine.difficulty = undefined;
+    const actor = new Character({id:"guest",color:"#fff"}, true, engine);
+    expect(actor.spdMult).toBe(1);
+    actor.vx = 5;
+    actor.update(16, enemy);
+    actor.takeDamage(10);
+    expect(actor.x).toBe(165);
+    expect(actor.hp).toBe(90);
+    const label = engine.arenaEl.querySelector(".damage-num");
+    expect(label.textContent).toBe("10");
+    label.dispatchEvent(new Event("animationend"));
+    expect(engine.arenaEl.querySelector(".damage-num")).toBeNull();
+  });
+
+  it.each(["blaze", "storm"])("emits %s contact sparks while applying proximity damage", id => {
+    const actor = choose(id);
+    actor.vx = 5;
+    actor.x = enemy.x - 90;
+    const random = vi.spyOn(Math, "random");
+    try {
+      random.mockReturnValue(0);
+      actor.update(16, enemy);
+      expect(engine.spawnParticles).toHaveBeenCalledOnce();
+      expect(enemy.hp).toBeLessThan(enemy.maxHp);
+      random.mockReturnValue(1);
+      enemy.isBlocking = true;
+      const hp = enemy.hp;
+      actor.update(16, enemy);
+      expect(enemy.hp).toBe(hp);
+      expect(engine.spawnParticles).toHaveBeenCalledOnce();
+    } finally {
+      random.mockRestore();
+    }
+  });
+
+  it("grants Terra's additional guard on the ground and Iron's knockback resistance", () => {
+    const terra = choose("terra");
+    terra.takeDamage(10);
+    const groundedDamage = 100 - terra.hp;
+    terra.y = 25;
+    terra.hp = 100;
+    terra.takeDamage(10);
+    expect(100 - terra.hp).toBeGreaterThan(groundedDamage);
+    const iron = choose("iron");
+    iron.takeDamage(8, 10);
+    fighter.takeDamage(8, 10);
+    expect(iron.vx).toBeCloseTo(fighter.vx * .6);
+  });
+
+  it("mitigates chip damage with Frost armor and delays Aqua healing after damage", () => {
+    const frost = choose("frost");
+    frost.isBlocking = true;
+    frost.takeDamage(10);
+    expect(frost.hp).toBeCloseTo(100 - 10 * .825 * .18);
+    const aqua = choose("aqua");
+    aqua.takeDamage(12);
+    const wounded = aqua.hp;
+    aqua.update(1000, enemy);
+    expect(aqua.hp).toBe(wounded);
+    aqua.update(2000, enemy);
+    expect(aqua.hp).toBeGreaterThan(wounded);
+  });
+
 });

@@ -78,7 +78,7 @@ The browser suite starts Vite's preview server on port 4173 and exercises the bu
 
 GitHub Actions runs the unit suite and builds the game on Linux and Windows. Both runners check that each built page, its links, and its local assets resolve under a deployment subdirectory. The browser jobs use the same Linux build for keyboard and touch playthroughs, a timed knockout, pausing and restarting, shopping, cross-tab saves, blocked storage, and menu navigation.
 
-Open **unit-coverage** on the workflow run for the unit coverage report. A failed browser job provides a **browser-failures** artifact for its engine with an HTML report, traces, and screenshots. Once all jobs pass, **anime-legends-dist** contains the build that the browsers tested. Checks run on pull requests, pushes to `main`, and manual runs. [Release checks](.github/workflows/check.yml)
+The Linux unit suite requires 100% line, statement, branch, and function coverage for each measured application JavaScript file. Open **unit-coverage** on the workflow run to inspect the V8 report. A failed browser job provides a **browser-failures** artifact for its engine with an HTML report, traces, and screenshots. Once all jobs pass, **anime-legends-dist** contains the build that the browsers tested. Checks run on pull requests, pushes to `main`, and manual runs. [Release checks](.github/workflows/check.yml)
 
 ## Deploy to Netlify
 

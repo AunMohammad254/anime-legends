@@ -67,4 +67,27 @@ describe("Projectile in the battle arena", () => {
     stray.update(16);
     expect(stray.active).toBe(false);
   });
+
+  it("casts a stationary shadow double with default damage and hits above its normal range", () => {
+    const clone = new Projectile({x: target.x, owner, isClone:true}, engine);
+    target.y = 300;
+    expect(clone.el.classList.contains("shadow-double")).toBe(true);
+    clone.update(16);
+    expect(target.takeDamage).toHaveBeenCalledWith(10, 0, false, false);
+    clone.update(16);
+    expect(target.takeDamage).toHaveBeenCalledOnce();
+    expect(clone.active).toBe(false);
+  });
+
+  it("allows the player to reflect an incoming vertical shot back to the CPU's side", () => {
+    owner.weapon = {id: "gauntlet"};
+    owner.weaponColor = "#ffd700";
+    owner.isBlocking = true;
+    const shot = fire({x: owner.x, owner:target, vx:0, vy:1});
+    shot.update(16);
+    expect(shot.owner).toBe(owner);
+    expect(shot.vx).toBeGreaterThan(0);
+    expect(engine.spawnParticles).toHaveBeenCalledWith(owner.x, 80, 5, "#ffd700", 30, 200);
+  });
+
 });

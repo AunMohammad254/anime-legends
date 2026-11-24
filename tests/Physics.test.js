@@ -30,6 +30,14 @@ describe("Physics", () => {
       expect(entity.x).toBe(0);
     });
 
+    it.each([
+      [-1, 0], [200, 180], [0, 0], [180, 180], [40, 40],
+    ])("clamps y=%i within the ceiling and floor to %i", (y, expected) => {
+      const entity = { x: 45, y, w: 10, h: 20 };
+      Physics.resolveCollision(entity, { left: 0, right: 100, top: 0, bottom: 200 });
+      expect(entity).toEqual({ x: 45, y: expected, w: 10, h: 20 });
+    });
+
     it("constrains entity within right bound", () => {
       const entity = { x: 800, y: 0, w: 50, h: 50 };
       const bounds = { left: 0, right: 800, top: 0, bottom: 600 };
@@ -55,7 +63,7 @@ describe("Physics", () => {
   describe("applyFriction", () => {
     it("reduces horizontal velocity", () => {
       const entity = { vx: 10 };
-      Physics.applyFriction(entity, 0.85);
+      Physics.applyFriction(entity);
       expect(entity.vx).toBe(8.5);
     });
   });

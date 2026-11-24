@@ -299,14 +299,14 @@ export function resolveCollision(attacker, defender, moveId, engine) {
   let dmg = move.damage * (1 + ((attacker.data?.atk ?? 7) - 7) * 0.05);
   if (result === "juggled") {
     // Juggle gravity scaling reduces damage on successive air hits
-    const scale = dcs ? 1 / dcs.juggleGravity : 0.7;
+    const scale = 1 / dcs.juggleGravity;
     dmg *= Math.max(0.2, scale);
   }
 
   // ── Apply knockback ───────────────────────────────────────────────────────
   const kb = move.knockback * attacker.dir;
   if (result === "launched" || result === "juggled") {
-    defender.vy = -16 / (dcs?.juggleGravity ?? 1); // Upward launch, scaled
+    defender.vy = -16 / dcs.juggleGravity; // Upward launch, scaled
   }
 
   // ── Hitstop — freeze both fighters ───────────────────────────────────────

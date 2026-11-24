@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { engine } from "../engine.js";
 import { CHARACTERS, WEAPONS } from "../constants.js";
+import { state } from "../state.js";
 
 const frame = 1000 / 60;
 const opponent = CHARACTERS.find(c => c.id === "shadow");
@@ -326,5 +327,212 @@ describe("match simulation", () => {
     engine.p1.takeDamage(500);
     step(50);
     expect(engine.onGameEnd.mock.calls[0][0]).toBe("SURVIVAL_END");
+  });
+});
+
+describe("match configuration and controls", () => {
+  it.each([
+    [200, ["hp_up", "power_start"], 250, 2, 1, 99],
+    [400, ["speed_up"], 400, 0, 1.15, 120],
+  ])("applies equipped boosts to the player only in a %i HP match", (health, equipped, hp, power, speed, timer) => {
+    const previous = state.data.activeBoosts;
+    try {
+      state.data.activeBoosts = equipped;
+      start(CHARACTERS[0], "normal", health);
+      expect(engine.p1.hp).toBe(hp);
+      expect(engine.p1.power).toBe(power);
+      expect(engine.p1.spdMult).toBeCloseTo(speed);
+      expect(engine.cpu.hp).toBe(health);
+      expect(engine.cpu.power).toBe(0);
+      expect(engine.timer).toBe(timer);
+    } finally {
+      state.data.activeBoosts = previous;
+    }
+  });
+
+  it("runs whole simulation steps, limits catch-up after a stall and stops scheduling after timeout", () => {
+    start();
+    const hud = vi.fn();
+    engine.onHUDUpdate = hud;
+    try {
+      engine.battleLoop(1000);
+      engine.battleLoop(1005);
+      expect(engine.timer).toBe(60);
+      engine.battleLoop(1020);
+      expect(engine.timer).toBeCloseTo(60 - frame / 1000, 6);
+      engine.battleLoop(2020);
+      expect(engine.timer).toBeCloseTo(60 - 7 * frame / 1000, 6);
+      expect(hud).toHaveBeenLastCalledWith(engine.p1, engine.cpu, engine.timer);
+      engine.timer = 0.001;
+      requestAnimationFrame.mockClear();
+      engine.battleLoop(2100);
+      expect(engine.onGameEnd).toHaveBeenCalledOnce();
+      engine.battleLoop(2200);
+      expect(requestAnimationFrame).not.toHaveBeenCalled();
+      expect(engine.togglePause()).toBe(false);
+    } finally {
+      engine.onHUDUpdate = null;
+    }
+  });
+
+  it("returns the audio preference from the audio manager", () => {
+    vi.spyOn(engine.audioManager, "toggle").mockReturnValueOnce(true).mockReturnValueOnce(false);
+    expect(engine.toggleAudio()).toBe(true);
+    expect(engine.toggleAudio()).toBe(false);
+  });
+
+  it("moves left and right, jumps once while airborne and guards instead of attacking", () => {
+    start(opponent);
+    const input = engine.keyboardInput;
+    const initial = engine.p1.x;
+    input.setKeyState("ArrowLeft", true);
+    step(1);
+    expect(engine.p1.dir).toBe(-1);
+    expect(engine.p1.x).toBeLessThan(initial);
+    input.setKeyState("ArrowLeft", false);
+    input.setKeyState("ArrowRight", true);
+    step(2);
+    expect(engine.p1.x).toBeGreaterThan(initial);
+    input.setKeyState("ArrowRight", false);
+    input.setKeyState("ArrowUp", true);
+    step(3);
+    expect(engine.p1.state).toBe("jump_rise");
+    input.setKeyState("ArrowUp", false);
+    step(28);
+    expect(engine.p1.state).toBe("jump_fall");
+    input.setKeyState("KeyC", true);
+    tap("KeyX");
+    step(1);
+    expect(engine.p1.isBlocking).toBe(true);
+    expect(engine.p1.combatState.isAttacking).toBe(false);
+    input.setKeyState("KeyC", false);
+    step(65);
+    tap("Space");
+    step(1);
+    expect(engine.p1.dashActive).toBeGreaterThan(0);
+    expect(engine.p1.opacity).toBeLessThan(1);
+  });
+
+  it("rejects unavailable or unknown attacks without spending power or starting an action", () => {
+    start();
+    const { p1, cpu } = engine;
+    tap("KeyV");
+    step(1);
+    expect(p1.power).toBe(0);
+    expect(engine.projectiles).toHaveLength(0);
+    engine.attack(p1, cpu, "unknown");
+    expect(p1.combatState.isAttacking).toBe(false);
+    p1.power = 4;
+    p1.cooldowns.ult = 1200;
+    expect(engine.useUltimate(p1, cpu)).toBe(false);
+    expect(p1.power).toBe(4);
+  });
+
+  it("blinks into range facing left when the shadow blade attacks from the right", () => {
+    start(opponent);
+    engine.p1.weapon = { ...WEAPONS.find(w => w.id === "blade") };
+    engine.p1.x = 700;
+    engine.cpu.x = 45;
+    tap("KeyX");
+    step(1);
+    expect(engine.p1.x).toBeLessThan(155);
+    expect(engine.p1.dir).toBe(-1);
+  });
+});
+
+describe("ability counterplay", () => {
+  it("limits soul drain to opponents in reach and heals only on an unblocked hit", () => {
+    start(CHARACTERS.find(c => c.id === "soul"));
+    const { p1, cpu } = engine;
+    p1.hp = 50;
+    p1.power = 4;
+    cpu.x = 700;
+    engine.useSpecial(p1, cpu);
+    expect(p1.hp).toBe(50);
+    expect(cpu.hp).toBe(100);
+    step(55);
+    cpu.isBlocking = true;
+    engine.useUltimate(p1, cpu);
+    expect(p1.x).toBeLessThan(cpu.x);
+    expect(p1.hp).toBe(50);
+    expect(cpu.hp).toBeLessThan(100);
+    expect(cpu.hp).toBeGreaterThan(75);
+  });
+
+  it("lets an opponent move out of a marked lightning strike", () => {
+    start(CHARACTERS.find(c => c.id === "storm"));
+    engine.p1.power = 3;
+    engine.useUltimate(engine.p1, engine.cpu);
+    engine.cpu.x = 700;
+    step(36);
+    expect(engine.cpu.hp).toBe(100);
+  });
+
+  it("lets a jumping opponent avoid an earthquake pulse", () => {
+    start(CHARACTERS.find(c => c.id === "terra"));
+    engine.p1.power = 3;
+    engine.useUltimate(engine.p1, engine.cpu);
+    engine.cpu.vy = -18;
+    step(12);
+    expect(engine.cpu.y).toBeGreaterThan(75);
+    expect(engine.cpu.hp).toBe(100);
+  });
+});
+
+describe("knockout precedence", () => {
+  it("resolves an instant player special before the CPU can retaliate", () => {
+    start(opponent);
+    engine.cpu.hp = 1;
+    engine.p1.power = 1;
+    tap("KeyV");
+    step(1);
+    expect(engine.cpu.hp).toBe(0);
+    expect(engine.aiController.update).not.toHaveBeenCalled();
+  });
+
+  it("resolves an instant CPU special before an incoming strike", () => {
+    start(opponent);
+    engine.aiController.update.mockRestore();
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    engine.aiController.state = "ATTACK";
+    engine.cpu.power = 1;
+    engine.cpu.hp = 1;
+    engine.p1.hp = 1;
+    engine.attack(engine.p1, engine.cpu, "attack_light");
+    engine.p1.combatState.framesLeft = 1;
+    step(1);
+    expect(engine.p1.hp).toBe(0);
+    expect(engine.cpu.hp).toBe(1);
+  });
+
+  it("does not let a knocked-out fighter trade simultaneous melee hits", () => {
+    start(opponent);
+    engine.cpu.hp = engine.p1.hp = 1;
+    engine.attack(engine.p1, engine.cpu, "attack_light");
+    engine.attack(engine.cpu, engine.p1, "attack_light");
+    step(10);
+    expect(engine.cpu.hp).toBe(0);
+    expect(engine.p1.hp).toBe(1);
+  });
+
+  it.each(["p1", "cpu"])("stops processing drops on a lethal poison tick for %s", side => {
+    start(opponent);
+    engine[side].hp = 0.01;
+    engine[side].poisonTime = 100;
+    engine.weaponTimer = 1;
+    step(1);
+    expect(engine.ko.loser).toBe(engine[side]);
+    expect(engine.activeWeaponDrop).toBeNull();
+  });
+
+  it("counts a survival KO once even with no announcement element", () => {
+    start(opponent, "normal", "unlimited");
+    document.getElementById("round-text").remove();
+    engine.cpu.takeDamage(200);
+    engine.triggerKO(engine.cpu);
+    expect(engine.survivalKills).toBe(1);
+    engine.stopBattle();
+    engine.triggerKO(engine.cpu);
+    expect(engine.ko).toBeNull();
   });
 });

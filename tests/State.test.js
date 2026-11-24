@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { GameState } from "../src/core/GameState.js";
+import { state as browserState } from "../state.js";
 
 describe("State", () => {
   let state;
@@ -207,5 +208,64 @@ describe("State", () => {
     expect(restored.data.highScores.map((entry) => entry.score)).toEqual(
       [1000, 900, 800, 700, 600, 500, 400, 300, 200, 100],
     );
+  });
+
+  it("refreshes the browser state on save and clear events from another tab", () => {
+    const updates = vi.fn();
+    browserState.on("progressLoaded", updates);
+    localStorage.setItem(browserState.storageKey, JSON.stringify({ spiritShards: 140 }));
+    window.dispatchEvent(new StorageEvent("storage", { key: "anime-audio" }));
+    expect(updates).not.toHaveBeenCalled();
+    window.dispatchEvent(new StorageEvent("storage", { key: browserState.storageKey }));
+    expect(browserState.spiritShards).toBe(140);
+    localStorage.clear();
+    window.dispatchEvent(new StorageEvent("storage", { key: null }));
+    expect(updates).toHaveBeenCalledTimes(2);
+    expect(browserState.spiritShards).toBe(0);
+  });
+
+  it("equips unlocked skins and informs listeners only after a successful change", () => {
+    const display = vi.fn();
+    const preview = vi.fn();
+    state.on("skinChanged", display);
+    state.on("skinChanged", preview);
+    expect(state.setSkin("gold")).toBe(false);
+    expect(state.unlockSkin("gold")).toBe(true);
+    expect(state.unlockSkin("gold")).toBe(false);
+    expect(state.setSkin("gold")).toBe(true);
+    expect(new GameState().data.activeSkinId).toBe("gold");
+    expect(display.mock.calls).toEqual([["gold"]]);
+    expect(preview.mock.calls).toEqual([["gold"]]);
+  });
+
+  it("rejects obsolete catalog items and unaffordable skins without changing progress", () => {
+    expect(state.buyCharacter("retired")).toBe(false);
+    expect(state.unlockCharacter("retired")).toBe(false);
+    expect(state.buySkin("retired")).toBe(false);
+    expect(state.unlockSkin("retired")).toBe(false);
+    expect(state.toggleBoost("retired")).toBe(false);
+    expect(state.buySkin("gold")).toBe(false);
+    expect(localStorage.getItem(state.storageKey)).toBeNull();
+    expect(state.data).toEqual(new GameState().data);
+  });
+
+  it("records historical scores without issuing rewards and resets saved progress on clear", () => {
+    const score = { name: "Blaze Warrior", score: 220, date: "2026-11-23" };
+    const updated = vi.fn();
+    const cleared = vi.fn();
+    state.on("scoresUpdated", updated);
+    state.on("stateCleared", cleared);
+    expect(state.addScore({ ...score, name: " " })).toBe(false);
+    expect(state.addScore({ ...score, date: null })).toBe(false);
+    expect(state.addScore(score)).toBe(true);
+    expect(updated.mock.calls).toEqual([[[score]]]);
+    expect(new GameState().data.highScores).toEqual([score]);
+    expect(state.spiritShards).toBe(0);
+    state.addShards(500);
+    state.buyCharacter("shadow");
+    state.clear();
+    const restored = new GameState();
+    expect(restored.data).toMatchObject({ spiritShards: 0, unlockedCharacters: ["blaze"], highScores: [] });
+    expect(cleared).toHaveBeenCalledOnce();
   });
 });

@@ -143,7 +143,6 @@ export class AudioManager {
     const pat = [1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0];
     let step = 0;
     const bInt = setInterval(() => {
-      if (!this.enabled) return;
       if (pat[step % 16]) {
         bGain.gain.setValueAtTime(0.18, this.ctx.currentTime);
         bGain.gain.exponentialRampToValueAtTime(
@@ -157,7 +156,6 @@ export class AudioManager {
     const aNotes = [220, 277, 330, 415, 440, 415, 330, 277];
     let aStep = 0;
     const aInt = setInterval(() => {
-      if (!this.enabled) return;
       arp.frequency.setValueAtTime(aNotes[aStep % 8], this.ctx.currentTime);
       aStep++;
     }, 180);

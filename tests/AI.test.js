@@ -111,4 +111,31 @@ describe("AIController", () => {
     ai.update();
     expect(engine.useUltimate).toHaveBeenCalledWith(cpu, p1);
   });
+
+  it.each(["player", "cpu"])("stops fighting when the %s falls", loser => {
+    (loser === "cpu" ? cpu : p1).hp = 0;
+    ai.update();
+    expect(cpu.setState).not.toHaveBeenCalled();
+    expect(engine.attack).not.toHaveBeenCalled();
+  });
+
+  it("chases a player who dashes away during the CPU's attack windup", () => {
+    ai.state = "ATTACK";
+    p1.x = cpu.x + 250;
+    ai.update();
+    expect(cpu.vx).toBeGreaterThan(0);
+    expect(cpu.setState).toHaveBeenCalledWith("run");
+    expect(engine.attack).not.toHaveBeenCalled();
+  });
+
+  it("jumps to contest an airborne opponent and commits to a heavy swing", () => {
+    ai.state = "ATTACK";
+    cpu.x = p1.x - 70;
+    p1.y = 150;
+    vi.spyOn(Math, "random").mockReturnValue(0.7);
+    ai.update();
+    expect(cpu.vy).toBeLessThan(0);
+    expect(engine.attack).toHaveBeenCalledWith(cpu, p1, "attack_heavy");
+  });
+
 });

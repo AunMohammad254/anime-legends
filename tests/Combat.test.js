@@ -174,3 +174,109 @@ describe("resolveCollision", () => {
     expect(result).toBe("whiff");
   });
 });
+
+describe("combat timing and defensive options", () => {
+  function fighter(x, isPlayer) {
+    const f = { x, y: 0, dir: isPlayer ? 1 : -1, isPlayer, hp: 100, takeDamage: vi.fn() };
+    f.combatState = new CombatState(f, {});
+    return f;
+  }
+
+  function advance(state, frames) {
+    for (let i = 0; i < frames; i++) state.tick();
+  }
+
+  it("deduplicates repeat inputs and clears the buffer when a sequence ends", () => {
+    const buffer = new InputBuffer();
+    buffer.push("attack_light");
+    buffer.push("attack_light");
+    expect(buffer.consume()).toBe("attack_light");
+    expect(buffer.consume()).toBeNull();
+    buffer.push("attack_heavy");
+    buffer.clear();
+    expect(buffer.hasPending()).toBe(false);
+  });
+
+  it("cancels a recovering light attack into a special or starts the buffered heavy after recovery", () => {
+    const state = fighter(0, true).combatState;
+    const light = MOVE_DATA.attack_light;
+    expect(state.isAttacking).toBe(false);
+    expect(state.beginAttack("missing-move")).toBe(false);
+    state.beginAttack("attack_light");
+    expect(state.isAttacking).toBe(true);
+    expect(state.getHitbox()).toBeNull();
+    advance(state, light.startupFrames);
+    expect(state.getHitbox()).toBeTruthy();
+    expect(state.isAttacking).toBe(true);
+    advance(state, light.activeFrames);
+    expect(state.isAttacking).toBe(true);
+    expect(state.beginAttack("special")).toBe(true);
+    expect(state.moveId).toBe("special");
+
+    const special = MOVE_DATA.special;
+    advance(state, special.startupFrames + special.activeFrames + special.recoveryFrames - 1);
+    expect(state.beginAttack("attack_heavy")).toBe(false);
+    state.tick();
+    expect(state.moveId).toBe("attack_heavy");
+    expect(state.state).toBe(FighterState.STARTUP);
+  });
+
+  it.each([
+    [AttackLevel.HIGH, false, "blocked"], [AttackLevel.HIGH, true, "hit"],
+    [AttackLevel.LOW, false, "hit"], [AttackLevel.LOW, true, "blocked"],
+  ])("resolves %s against a crouching=%s guard as %s", (level, crouching, outcome) => {
+    const state = fighter(0, false).combatState;
+    state.isCrouching = crouching;
+    expect(state.applyHit({ ...MOVE_DATA.attack_light, hitLevel: level }, true, false)).toBe(outcome);
+  });
+
+  it("avoids startup contact and lets a dashing defender pass through a live hitbox", () => {
+    const a = fighter(10, true);
+    const d = fighter(100, false);
+    d.combatState.state = FighterState.WALK;
+    expect(d.combatState.canAct).toBe(true);
+    a.combatState.beginAttack("attack_light");
+    expect(resolveCollision(a, d, "attack_light")).toBe("whiff");
+    advance(a.combatState, MOVE_DATA.attack_light.startupFrames);
+    d.combatState.state = FighterState.DASH;
+    expect(d.combatState.canAct).toBe(true);
+    expect(resolveCollision(a, d, "attack_light")).toBe("whiff");
+    expect(d.takeDamage).not.toHaveBeenCalled();
+  });
+
+  it("scales airborne follow-ups, awards the combo, then returns control after knockdown", () => {
+    const a = fighter(0, true);
+    const d = fighter(95, false);
+    const events = { onShake: vi.fn(), onComboUpdate: vi.fn() };
+    a.combatState.beginAttack("special");
+    advance(a.combatState, MOVE_DATA.special.startupFrames);
+    expect(resolveCollision(a, d, "special", events)).toBe("launched");
+    expect(d.vy).toBe(-16);
+    expect(events.onShake).toHaveBeenLastCalledWith(10);
+
+    d.y = 40;
+    expect(resolveCollision(a, d, "special", events)).toBe("juggled");
+    expect(d.vy).toBeCloseTo(-16 / 1.4);
+    expect(d.takeDamage.mock.lastCall[0]).toBeCloseTo(MOVE_DATA.special.damage / 1.4);
+    expect(events.onShake).toHaveBeenLastCalledWith(6);
+    expect(events.onComboUpdate).toHaveBeenLastCalledWith(2);
+    advance(d.combatState, d.combatState.hitstopFrames + d.combatState.framesLeft);
+    expect(d.combatState.state).toBe(FighterState.KNOCKDOWN);
+    expect(d.combatState.canAct).toBe(false);
+    advance(d.combatState, d.combatState.framesLeft);
+    expect(d.combatState.canAct).toBe(true);
+    expect(d.combatState.juggleGravity).toBe(1);
+  });
+
+  it("accepts simple fighters without frame data and signals a lighter impact on guard", () => {
+    const attacker = { dir: -1 };
+    const defender = { isBlocking: true, takeDamage: vi.fn() };
+    const onShake = vi.fn();
+    expect(resolveCollision(attacker, defender, "attack_light", { onShake })).toBe("blocked");
+    expect(onShake).toHaveBeenCalledWith(1.5);
+    expect(attacker.combo).toBeUndefined();
+    defender.isBlocking = false;
+    expect(resolveCollision(attacker, defender, "attack_light")).toBe("hit");
+    expect(attacker.combo).toBe(1);
+  });
+});

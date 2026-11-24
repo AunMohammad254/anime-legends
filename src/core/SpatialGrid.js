@@ -1,5 +1,7 @@
 export class SpatialGrid {
   constructor(width, height, cellSize = 100) {
+    this.width = width;
+    this.height = height;
     this.cellSize = cellSize;
     this.cols = Math.ceil(width / cellSize);
     this.rows = Math.ceil(height / cellSize);
@@ -13,12 +15,10 @@ export class SpatialGrid {
   }
 
   insert(entity) {
-    const col = Math.floor(entity.x / this.cellSize);
-    const row = Math.floor(entity.y / this.cellSize);
-    const index = row * this.cols + col;
-
-    if (index >= 0 && index < this.grid.length) {
-      this.grid[index].push(entity);
+    if (entity.x >= 0 && entity.x < this.width && entity.y >= 0 && entity.y < this.height) {
+      const col = Math.floor(entity.x / this.cellSize);
+      const row = Math.floor(entity.y / this.cellSize);
+      this.grid[row * this.cols + col].push(entity);
     }
   }
 
@@ -33,12 +33,9 @@ export class SpatialGrid {
     const row = Math.floor(entity.y / this.cellSize);
     const nearby = [];
 
-    for (let r = row - 1; r <= row + 1; r++) {
-      for (let c = col - 1; c <= col + 1; c++) {
-        const index = r * this.cols + c;
-        if (index >= 0 && index < this.grid.length) {
-          nearby.push(...this.grid[index]);
-        }
+    for (let r = Math.max(row - 1, 0); r <= Math.min(row + 1, this.rows - 1); r++) {
+      for (let c = Math.max(col - 1, 0); c <= Math.min(col + 1, this.cols - 1); c++) {
+        nearby.push(...this.grid[r * this.cols + c]);
       }
     }
 

@@ -125,4 +125,34 @@ describe("Audio preferences and battle playback", () => {
     audio.toggle();
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  it.each([
+    ["light", 0.08], ["swing", 0.1], ["special", 0.5], ["ko", 1.2], ["block", 0.05],
+  ])("plays a short %s cue and schedules it to end", (cue, duration) => {
+    localStorage.setItem("anime-audio", "true");
+    const audio = new AudioManager();
+    audio.init();
+    audio.playSound(cue);
+    const source = audio.ctx.sources.at(-1);
+    expect(source.start).toHaveBeenCalledOnce();
+    expect(source.stop).toHaveBeenCalledWith(audio.ctx.currentTime + duration);
+  });
+
+  it("works with prefixed Web Audio and tolerates asynchronous browser playback restrictions", async () => {
+    vi.stubGlobal("AudioContext", undefined);
+    class RestrictedAudio extends TestAudioContext {
+      async resume() { throw new Error("Gesture needed"); }
+      async suspend() { throw new Error("Device interrupted"); }
+    }
+    vi.stubGlobal("webkitAudioContext", RestrictedAudio);
+    localStorage.setItem("anime-audio", "true");
+    const audio = new AudioManager();
+    audio.init();
+    expect(audio.ctx).toBeInstanceOf(RestrictedAudio);
+    expect(audio.toggle()).toBe(false);
+    expect(audio.toggle()).toBe(true);
+    await Promise.resolve();
+    expect(localStorage.getItem("anime-audio")).toBe("true");
+  });
+
 });
