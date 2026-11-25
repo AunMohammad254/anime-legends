@@ -4,6 +4,7 @@ import { CHARACTERS, WEAPONS } from "../constants.js";
 import { state } from "../state.js";
 
 const frame = 1000 / 60;
+let notifyArenaResize;
 const opponent = CHARACTERS.find(c => c.id === "shadow");
 
 function start(fighter = CHARACTERS[0], difficulty = "normal", health = 100) {
@@ -25,7 +26,12 @@ function tap(key) {
 beforeEach(() => {
   document.body.innerHTML = '<div id="arena"><div id="p1-sprite"></div><div id="cpu-sprite"></div><div id="round-text"></div></div>';
   Object.defineProperties(document.getElementById("arena"), {
-    offsetWidth: { value: 800 }, offsetHeight: { value: 450 },
+    offsetWidth: { value: 800, configurable: true }, offsetHeight: { value: 450, configurable: true },
+  });
+  vi.stubGlobal("ResizeObserver", class {
+    constructor(callback) { notifyArenaResize = callback; }
+    observe() {}
+    disconnect() {}
   });
   vi.stubGlobal("requestAnimationFrame", vi.fn(() => 123));
   vi.stubGlobal("cancelAnimationFrame", vi.fn());
@@ -43,6 +49,17 @@ afterEach(() => {
 });
 
 describe("fighter abilities", () => {
+  it("keeps fighters inside the resized stage after rotating the phone", () => {
+    start();
+    engine.cpu.x = 720;
+    Object.defineProperties(engine.arenaEl, { offsetWidth: { value: 320 }, offsetHeight: { value: 400 } });
+    notifyArenaResize();
+    step(1);
+    expect(engine.arenaHeight).toBe(400);
+    expect(engine.cpu.x).toBe(275);
+    expect(engine.cpu.el.style.transform).toContain("translate3d(225px, 0px, 0px)");
+  });
+
   for (const fighter of CHARACTERS) {
     it.each([false, true])(`${fighter.name} resolves its ability (ultimate=%s)`, ultimate => {
       start(fighter);
@@ -357,11 +374,13 @@ describe("match configuration and controls", () => {
     try {
       engine.battleLoop(1000);
       engine.battleLoop(1005);
+      expect(hud).not.toHaveBeenCalled();
       expect(engine.timer).toBe(60);
       engine.battleLoop(1020);
       expect(engine.timer).toBeCloseTo(60 - frame / 1000, 6);
       engine.battleLoop(2020);
       expect(engine.timer).toBeCloseTo(60 - 7 * frame / 1000, 6);
+      expect(hud).toHaveBeenCalledTimes(2);
       expect(hud).toHaveBeenLastCalledWith(engine.p1, engine.cpu, engine.timer);
       engine.timer = 0.001;
       requestAnimationFrame.mockClear();
@@ -534,5 +553,59 @@ describe("knockout precedence", () => {
     engine.stopBattle();
     engine.triggerKO(engine.cpu);
     expect(engine.ko).toBeNull();
+  });
+});
+
+describe("melee contact feedback", () => {
+  it.each([
+    ["KeyZ", false, "light", 3], ["KeyX", false, "heavy", 6], ["KeyX", true, "guard", 3],
+  ])("confirms %s against guarding=%s for the matching hitstop", (key, guarded, kind, ticks) => {
+    start(opponent);
+    const impact = engine.arenaEl.querySelector(".melee-impact");
+    engine.cpu.isBlocking = guarded;
+    tap(key);
+    step(1);
+    expect(impact.hidden).toBe(true);
+    step(engine.p1.combatState.activeMove.startupFrames);
+    expect(impact.hidden).toBe(false);
+    expect(impact.dataset.kind).toBe(kind);
+    expect(engine.cpu.hp).toBeLessThan(100);
+    expect(engine.p1.combatState.hitstopFrames).toBe(ticks);
+    engine.togglePause();
+    engine.battleLoop(5000);
+    expect(impact.hidden).toBe(false);
+    engine.togglePause();
+    step(11);
+    expect(impact.hidden).toBe(true);
+  });
+
+  it("shows no contact on a miss and clears a live hit marker at rematch", () => {
+    start(opponent);
+    const impact = engine.arenaEl.querySelector(".melee-impact");
+    engine.cpu.x = 700;
+    tap("KeyZ");
+    step(35);
+    expect(impact.hidden).toBe(true);
+    expect(engine.cpu.hp).toBe(100);
+    engine.cpu.x = engine.p1.x + 90;
+    tap("KeyZ");
+    step(8);
+    expect(impact.hidden).toBe(false);
+    start(opponent);
+    expect(impact.hidden).toBe(true);
+  });
+
+  it("captures a jump tap between frames and requires a new press after landing", () => {
+    start(opponent);
+    tap("ArrowUp");
+    step(1);
+    expect(engine.p1.y).toBeGreaterThan(0);
+    step(75);
+    expect(engine.p1.y).toBe(0);
+    engine.keyboardInput.setKeyState("ArrowUp", true);
+    step(1);
+    expect(engine.p1.y).toBeGreaterThan(0);
+    step(75);
+    expect(engine.p1.y).toBe(0);
   });
 });

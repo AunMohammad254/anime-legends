@@ -16,7 +16,7 @@ export function castAbility(engine, fighter, target, ultimate) {
   };
   const blink = () => {
     burst(fighter.x, fighter.y + 70);
-    const width = engine.arenaEl.offsetWidth;
+    const width = engine.arenaWidth;
     const side = target.x > width / 2 ? -1 : 1;
     fighter.x = Math.max(50, Math.min(width - 50, target.x + side * 78));
     fighter.y = target.y;

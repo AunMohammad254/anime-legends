@@ -1,0 +1,36 @@
+/* A single reusable marker shows the contact point even with motion disabled. */
+#arena .melee-impact {
+  position: absolute;
+  z-index: 72;
+  pointer-events: none;
+  width: 44px;
+  height: 32px;
+  transform: translate(-50%, 50%) scaleX(var(--strike-direction));
+  background: #ffaf38;
+  clip-path: polygon(0 40%, 39% 36%, 26% 2%, 51% 27%, 65% 0, 61% 34%, 100% 18%, 73% 48%, 100% 70%, 63% 63%, 69% 100%, 47% 73%, 26% 95%, 34% 61%, 0 72%, 24% 51%);
+}
+#arena .melee-impact::after {
+  content: "";
+  position: absolute;
+  inset: 22% 15%;
+  background: #fff8d8;
+  clip-path: inherit;
+}
+#arena .melee-impact[data-kind="heavy"] {
+  width: 71px;
+  height: 50px;
+  background: #ff672b;
+}
+#arena .melee-impact[data-kind="guard"] {
+  width: 29px;
+  height: 47px;
+  border-radius: 50%;
+  background: transparent;
+  border: 3px solid #caf5ff;
+  border-inline-end: 6px solid #6bd2e5;
+  clip-path: none;
+}
+#arena .melee-impact[data-kind="guard"]::after { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  #arena #vfx-layer, #arena .trail-ghost { display: none; }
+}

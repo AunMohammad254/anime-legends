@@ -28,6 +28,9 @@ class Engine {
 
   init() {
     this.arenaEl = document.getElementById("arena");
+    this.arenaObserver?.disconnect();
+    this.arenaObserver = new ResizeObserver(() => this.measureArena());
+    this.arenaObserver.observe(this.arenaEl);
     this.particleSystem = new ParticleSystem(this.arenaEl);
     this.keyboardInput.init();
     this.touchInput.init();
@@ -35,6 +38,11 @@ class Engine {
 
   initAudio() {
     this.audioManager.init();
+  }
+
+  measureArena() {
+    this.arenaWidth = this.arenaEl.offsetWidth;
+    this.arenaHeight = this.arenaEl.offsetHeight;
   }
 
   toggleAudio() {
@@ -93,6 +101,7 @@ class Engine {
 
   startBattle(playerChar, cpuChar, difficulty, matchHealth) {
     this.stopBattle();
+    this.measureArena();
     this.difficulty = difficulty;
     this.matchHealth = matchHealth;
     this.weaponTimer = 8000;
@@ -134,12 +143,16 @@ class Engine {
     // Simulate at 60 Hz on both high-refresh displays and slower mobile devices.
     this.accumulator += Math.min(100, time - (this.lastTime ?? time));
     this.lastTime = time;
+    const advanced = this.accumulator >= FRAME;
     while (this.accumulator >= FRAME && this.gameActive) {
       this.accumulator -= FRAME;
       this.step(FRAME);
     }
     if (this.gameActive && !this.paused) {
-      this.onHUDUpdate?.(this.p1, this.cpu, this.timer);
+      if (advanced) {
+        this.particleSystem.render(this.arenaWidth, this.arenaHeight);
+        this.onHUDUpdate?.(this.p1, this.cpu, this.timer);
+      }
       this.frameId = requestAnimationFrame(this.battleLoop);
     }
   }
@@ -223,7 +236,7 @@ class Engine {
       f.dir = this.cpu.x < f.x ? -1 : 1;
       f.setState(f.y > 0 ? (f.vy < 0 ? "jump_rise" : "jump_fall") : `idle_${f.data.id}`);
     }
-    if (input.isPressed("ArrowUp") && f.y === 0) {
+    if (f.y === 0 && input.consumePress("ArrowUp")) {
       f.vy = -18;
       f.setState("jump_rise");
     }
@@ -260,7 +273,7 @@ class Engine {
     f.cooldowns.actionLock = FRAME * (move.startupFrames + move.activeFrames + move.recoveryFrames);
     if (f.weapon?.id === "blade" && type === "attack_heavy") {
       f.dir = target.x > f.x ? 1 : -1;
-      f.x = Math.max(50, Math.min(this.arenaEl.offsetWidth - 50, target.x - f.dir * 75));
+      f.x = Math.max(50, Math.min(this.arenaWidth - 50, target.x - f.dir * 75));
       f.weapon.hits--;
       this.spawnParticles(f.x, f.y + 80, 15, f.weaponColor || f.data.color, 40, 500);
     } else if (f.weapon?.id === "bow" && type === "attack_light") {
@@ -278,6 +291,10 @@ class Engine {
     if (result === "whiff") return;
     f.strikeResolved = true;
     f.power = Math.min(f.maxPower, f.power + 0.4);
+    const kind = result === "blocked" ? "guard" : f.combatState.moveId === "attack_heavy" ? "heavy" : "light";
+    const contactY = Math.max(target.y + 35, Math.min(target.y + 130, f.y + 100));
+    this.particleSystem.contact(target.x - f.dir * 23, contactY, f.dir, kind);
+    f.render();
   }
 
   fireProjectile(f, config) {
@@ -340,7 +357,7 @@ class Engine {
       this.weaponTimer -= dt;
       if (this.weaponTimer <= 0) {
         const wData = WEAPONS[Math.floor(Math.random() * WEAPONS.length)];
-        const wx = 100 + Math.random() * (this.arenaEl.offsetWidth - 200);
+        const wx = 100 + Math.random() * (this.arenaWidth - 200);
         const el = document.createElement("div");
         el.className = "weapon-drop";
         el.style.left = `${wx}px`;
@@ -417,7 +434,7 @@ class Engine {
   nextRound(survival) {
     this.clearAttacks();
     this.resetInput();
-    this.p1.x = this.arenaEl.offsetWidth * 0.2;
+    this.p1.x = this.arenaWidth * 0.2;
     this.p1.y = this.p1.vx = this.p1.vy = 0;
     this.p1.combatState = new CombatState(this.p1, this);
     this.p1.combo = 0;

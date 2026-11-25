@@ -8,6 +8,8 @@ Anime Legends is a single-player arcade fighting game by Aun Abbas. Start as Bla
 
 Choose **Enter the arena**, then **Choose fighter**. Pick a difficulty and match health, check your opponent, and select **Fight**. Land hits to build power. Walk into a weapon drop to equip it. The arena can drop a Katana, Spirit Bow, Chaos Orb, Shadow Blade, or Thunder Gauntlet.
 
+Land another unblocked punch within 1.5 seconds of combat time to keep your combo going. The results screen shows your longest combo from the match alongside your personal best on this device.
+
 | Mode | How it plays |
 | --- | --- |
 | Timed match | Choose 100, 200, 300, or 400 HP. Win by knockout or by finishing the round with a higher percentage of health remaining. Equal health at the bell is a draw. |

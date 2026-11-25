@@ -1,3 +1,31 @@
+const PUNCHES = {
+  light: { duration: 0.085, startHz: 320, endHz: 150, snapHz: 2800, bodyLevel: 0.26 },
+  heavy: { duration: 0.16, startHz: 240, endHz: 82, snapHz: 1200, bodyLevel: 0.44 },
+};
+
+// A short burst of filtered noise supplies the contact sound. The falling tone
+// adds weight, with a second harmonic that stays audible on small speakers.
+function makePunchBuffer(ctx, punch) {
+  const rate = ctx.sampleRate;
+  const buffer = ctx.createBuffer(1, Math.ceil(rate * punch.duration), rate);
+  const samples = buffer.getChannelData(0);
+  const filter = 1 - Math.exp(-2 * Math.PI * punch.snapHz / rate);
+  let noise = 0;
+  let phase = 0;
+
+  for (let i = 0; i < samples.length; i++) {
+    const time = i / rate;
+    const pitch = punch.endHz + (punch.startHz - punch.endHz) * Math.exp(-time / 0.022);
+    phase += 2 * Math.PI * pitch / rate;
+    const body = 0.72 * Math.sin(phase) + 0.28 * Math.sin(2 * phase);
+    noise += filter * (2 * Math.random() - 1 - noise);
+    const snap = 0.48 * noise * Math.exp(-time / 0.014);
+    const envelope = Math.min(1, time / 0.0015) * (1 - i / (samples.length - 1)) ** 2;
+    samples[i] = envelope * (punch.bodyLevel * body + snap);
+  }
+  return buffer;
+}
+
 export class AudioManager {
   constructor() {
     this.enabled = false;
@@ -9,6 +37,7 @@ export class AudioManager {
     this.musicRequested = false;
     this.ctx = null;
     this.bgmNodes = [];
+    this.punchBuffers = new Map();
   }
 
   init() {
@@ -51,6 +80,18 @@ export class AudioManager {
   playSound(type) {
     if (!this.enabled || !this.ctx) return;
 
+    if (type === "light" || type === "heavy") {
+      if (!this.punchBuffers.has(type)) {
+        this.punchBuffers.set(type, makePunchBuffer(this.ctx, PUNCHES[type]));
+      }
+      const source = this.ctx.createBufferSource();
+      source.buffer = this.punchBuffers.get(type);
+      source.connect(this.ctx.destination);
+      source.onended = () => source.disconnect();
+      source.start();
+      return;
+    }
+
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
     osc.connect(gain);
@@ -63,15 +104,6 @@ export class AudioManager {
     const t = this.ctx.currentTime;
 
     switch (type) {
-      case "light":
-        osc.type = "square";
-        osc.frequency.setValueAtTime(420, t);
-        osc.frequency.exponentialRampToValueAtTime(180, t + 0.08);
-        gain.gain.setValueAtTime(0.3, t);
-        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.08);
-        osc.start();
-        osc.stop(t + 0.08);
-        break;
       case "swing":
         osc.type = "triangle";
         osc.frequency.setValueAtTime(800, t);

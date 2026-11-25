@@ -35,8 +35,7 @@ export class Projectile {
     this.life -= dt;
     this.x += this.vx;
     this.y += this.vy;
-    const arena = this.engine.arenaEl;
-    if (this.life <= 0 || this.x < -100 || this.x > arena.offsetWidth + 100 || this.y < -100 || this.y > arena.offsetHeight + 100) {
+    if (this.life <= 0 || this.x < -100 || this.x > this.engine.arenaWidth + 100 || this.y < -100 || this.y > this.engine.arenaHeight + 100) {
       this.destroy();
       return;
     }
