@@ -1,4 +1,4 @@
-/* All six pieces retain their own pivot for punches, kicks and running. */
+/* Character armor and silhouettes share the same animated joints. */
 .fighter-inner[class*="fighter-"] .s-body {
   left: 23px;
   width: 54px;
@@ -33,11 +33,14 @@
   border-bottom: 2px solid #282632;
   transform: rotate(-8deg);
 }
-.fighter-inner[class*="fighter-"] :is(.s-arm-l,.s-arm-r) {
-  width: 16px;
-  height: 54px;
-  border-radius: 6px 6px 9px 5px;
-  background: linear-gradient(155deg, currentColor 0 23%, #252d40 24% 45%, #e2b89e 46% 62%, currentColor 63% 70%, #283044 71% 85%, #f4c5a8 86%);
+/* Shoulder and elbow pivots let the front arm unfold from a fighting guard. */
+.fighter-inner[class*="fighter-"] :is(.s-arm-l, .s-arm-r) {
+  height: 32px;
+  width: 19px;
+  top: 43px;
+  transform-origin: 50% 7px;
+  border-radius: 7px 7px 6px 5px;
+  background: linear-gradient(155deg, currentColor 0 24%, #eaf1f3 25% 31%, #282e43 32% 66%, #cb907b 67%);
 }
 .fighter-inner[class*="fighter-"] :is(.s-leg-l,.s-leg-r) {
   width: 20px;
@@ -92,15 +95,6 @@
   clip-path: polygon(55% 0,80% 6%,65% 23%,100% 40%,97% 47%,65% 41%,76% 66%,88% 95%,74% 100%,48% 71%,16% 100%,0 97%,30% 61%,34% 35%,8% 46%,4% 35%,33% 20%);
 }
 
-/* Shoulder and elbow pivots let the front arm unfold from a fighting guard. */
-.fighter-inner[class*="fighter-"] :is(.s-arm-l, .s-arm-r) {
-  height: 32px;
-  width: 19px;
-  top: 43px;
-  transform-origin: 50% 7px;
-  border-radius: 7px 7px 6px 5px;
-  background: linear-gradient(155deg, currentColor 0 24%, #eaf1f3 25% 31%, #282e43 32% 66%, #cb907b 67%);
-}
 .fighter-inner .s-forearm {
   position: absolute;
   display: block;

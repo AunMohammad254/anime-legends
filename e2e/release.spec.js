@@ -3,14 +3,18 @@ import { test, expect } from "./fixtures.js";
 // The HUD, arena and thumb controls must all fit in the same visible viewport.
 async function checkTouchLayout(page, controls) {
   const { width, height } = page.viewportSize();
-  const bounds = async (selector) => {
-    const element = page.locator(selector);
-    await expect(element).toBeInViewport({ ratio: 0.99 });
-    return element.boundingBox();
+  const bounds = async (element) => {
+    await expect(element).toBeVisible();
+    const box = await element.boundingBox();
+    expect(box.x).toBeGreaterThanOrEqual(-1);
+    expect(box.y).toBeGreaterThanOrEqual(-1);
+    expect(box.x + box.width).toBeLessThanOrEqual(width + 1);
+    expect(box.y + box.height).toBeLessThanOrEqual(height + 1);
+    return box;
   };
-  const hud = await bounds("#hud-el");
-  const fighters = await Promise.all(["#p1-sprite", "#cpu-sprite"].map(bounds));
-  const deck = await controls.boundingBox();
+  const hud = await bounds(page.locator("#hud-el"));
+  const fighters = await Promise.all(["#p1-sprite", "#cpu-sprite"].map(id => bounds(page.locator(id))));
+  const deck = await bounds(controls);
   for (const fighter of fighters) {
     expect(hud.y + hud.height).toBeLessThanOrEqual(fighter.y + 1);
     expect(fighter.y + fighter.height).toBeLessThanOrEqual(deck.y + 1);
@@ -18,11 +22,7 @@ async function checkTouchLayout(page, controls) {
   const buttons = controls.locator("[data-key]");
   await expect(buttons).toHaveCount(5);
   for (const button of await buttons.all()) {
-    const box = await button.boundingBox();
-    expect(box.x).toBeGreaterThanOrEqual(-1);
-    expect(box.y).toBeGreaterThanOrEqual(0);
-    expect(box.y + box.height).toBeLessThanOrEqual(height + 1);
-    expect(box.x + box.width).toBeLessThanOrEqual(width + 1);
+    await bounds(button);
     const reachable = await button.evaluate((el) => {
       const rect = el.getBoundingClientRect();
       return el.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));

@@ -636,7 +636,7 @@ h1, h2, .result-title, .matchup strong, .matchup em, #round-text, #combo-counter
   position: relative;
   grid-area: stage;
   min-height: 0;
-  --world-scale: .8;
+  --world-scale: .9;
 }
 /* Scale scenery, fighters, hit effects and projectiles in the same coordinate system. */
 #screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) .arena-world {
@@ -696,7 +696,13 @@ h1, h2, .result-title, .matchup strong, .matchup em, #round-text, #combo-counter
   font-size: 0;
   background: #172b39;
 }
-#screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) .hud-button::before { content: "Ⅱ"; font: 800 1.1rem/1 var(--font-body); }
+#screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) .hud-button::before {
+  content: "";
+  display: inline-block;
+  width: 11px;
+  height: 15px;
+  border-inline: 3px solid currentColor;
+}
 #screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) #round-label { font-size: .65rem; line-height: 1.05; }
 #screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) .weapon-slot { margin-top: 2px; font-size: .66rem; }
 #screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) .weapon-slot:empty { display: none; }
