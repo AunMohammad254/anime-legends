@@ -9,10 +9,9 @@ describe("Projectile in the battle arena", () => {
 
   beforeEach(() => {
     const arenaEl = document.createElement("div");
-    Object.defineProperties(arenaEl, { offsetWidth: { value: 800 }, offsetHeight: { value: 500 } });
     owner = { x: 130, y: 0, hp: 100, data: { color: "#f00" }, isPlayer: true, dashActive: 0, takeDamage: vi.fn() };
     target = { ...owner, x: 210, isPlayer: false, isBlocking: false, takeDamage: vi.fn() };
-    engine = { arenaEl, p1: owner, cpu: target, spawnParticles: vi.fn(), playSound: vi.fn() };
+    engine = { arenaEl, arenaWidth: 800, arenaHeight: 500, p1: owner, cpu: target, spawnParticles: vi.fn(), playSound: vi.fn() };
     onHit = vi.fn();
   });
 

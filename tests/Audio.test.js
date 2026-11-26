@@ -7,6 +7,7 @@ class TestAudioContext {
   constructor() {
     this.state = "suspended";
     this.sources = [];
+    this.sampleRate = 48000;
     this.destination = {};
   }
 
@@ -22,6 +23,17 @@ class TestAudioContext {
       start: vi.fn(),
       stop: vi.fn(),
     };
+    this.sources.push(source);
+    return source;
+  }
+
+  createBuffer(channels, length, rate) {
+    const samples = new Float32Array(length);
+    return { duration: length / rate, getChannelData: () => samples };
+  }
+
+  createBufferSource() {
+    const source = { connect: vi.fn(), disconnect: vi.fn(), start: vi.fn() };
     this.sources.push(source);
     return source;
   }
@@ -126,8 +138,38 @@ describe("Audio preferences and battle playback", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it("plays distinct light and heavy impacts with one reusable sample per punch", () => {
+    const audio = new AudioManager();
+    audio.init();
+    audio.playSound("heavy");
+    expect(audio.ctx.sources).toHaveLength(0);
+    audio.toggle();
+    audio.playSound("light");
+    audio.playSound("heavy");
+    audio.playSound("heavy");
+    const [swing, light, heavy, nextHeavy] = audio.ctx.sources;
+    expect(swing.frequency).toBeDefined();
+    expect(light.buffer).not.toBe(heavy.buffer);
+    expect(heavy.buffer.duration).toBeGreaterThan(light.buffer.duration);
+    expect(nextHeavy.buffer).toBe(heavy.buffer);
+    for (const hit of [light, heavy, nextHeavy]) {
+      const samples = hit.buffer.getChannelData(0);
+      expect(samples[0]).toBeCloseTo(0);
+      expect(samples.at(-1)).toBeCloseTo(0);
+      expect(samples.some((value) => Math.abs(value) > 0.1)).toBe(true);
+      expect(samples.every((value) => Math.abs(value) <= 1)).toBe(true);
+      expect(hit.connect).toHaveBeenCalledWith(audio.ctx.destination);
+      expect(hit.start).toHaveBeenCalledOnce();
+      hit.onended();
+      expect(hit.disconnect).toHaveBeenCalledOnce();
+    }
+    audio.toggle();
+    audio.playSound("light");
+    expect(audio.ctx.sources).toHaveLength(4);
+  });
+
   it.each([
-    ["light", 0.08], ["swing", 0.1], ["special", 0.5], ["ko", 1.2], ["block", 0.05],
+    ["swing", 0.1], ["special", 0.5], ["ko", 1.2], ["block", 0.05],
   ])("plays a short %s cue and schedules it to end", (cue, duration) => {
     localStorage.setItem("anime-audio", "true");
     const audio = new AudioManager();

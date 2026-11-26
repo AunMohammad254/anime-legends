@@ -1,5 +1,36 @@
 import { test, expect } from "./fixtures.js";
 
+// The HUD, arena and thumb controls must all fit in the same visible viewport.
+async function checkTouchLayout(page, controls) {
+  const { width, height } = page.viewportSize();
+  const bounds = async (element) => {
+    await expect(element).toBeVisible();
+    const box = await element.boundingBox();
+    expect(box.x).toBeGreaterThanOrEqual(-1);
+    expect(box.y).toBeGreaterThanOrEqual(-1);
+    expect(box.x + box.width).toBeLessThanOrEqual(width + 1);
+    expect(box.y + box.height).toBeLessThanOrEqual(height + 1);
+    return box;
+  };
+  const hud = await bounds(page.locator("#hud-el"));
+  const fighters = await Promise.all(["#p1-sprite", "#cpu-sprite"].map(id => bounds(page.locator(id))));
+  const deck = await bounds(controls);
+  for (const fighter of fighters) {
+    expect(hud.y + hud.height).toBeLessThanOrEqual(fighter.y + 1);
+    expect(fighter.y + fighter.height).toBeLessThanOrEqual(deck.y + 1);
+  }
+  const buttons = controls.locator("[data-key]");
+  await expect(buttons).toHaveCount(5);
+  for (const button of await buttons.all()) {
+    await bounds(button);
+    const reachable = await button.evaluate((el) => {
+      const rect = el.getBoundingClientRect();
+      return el.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+    });
+    expect(reachable, `${await button.textContent()} must receive taps at its center`).toBe(true);
+  }
+}
+
 test("a new player can fight, pause, finish survival and find the result after reloading", async ({ page, isMobile }) => {
   await page.clock.install();
   await page.goto("/");
@@ -13,23 +44,26 @@ test("a new player can fight, pause, finish survival and find the result after r
   await page.clock.runFor(1050);
   await expect(page.locator("#game-timer")).toHaveText("∞");
   const player = page.locator("#p1-sprite");
-  const initialX = await player.evaluate((el) => el.offsetLeft);
+  const initialX = await player.evaluate((el) => el.getBoundingClientRect().x);
 
   if (isMobile) {
-    const dash = page.locator("#touch-controls-portrait").getByRole("button", { name: "Dash" });
-    await dash.tap();
+    const controls = page.locator("#touch-controls-portrait");
+    await checkTouchLayout(page, controls);
+    await controls.getByRole("button", { name: "Dash" }).tap();
   } else {
     await page.keyboard.press("Space");
   }
   await page.clock.runFor(100);
-  expect(await player.evaluate((el) => el.offsetLeft)).toBeGreaterThan(initialX + 5);
+  expect(await player.evaluate((el) => el.getBoundingClientRect().x)).toBeGreaterThan(initialX + 5);
   await page.clock.resume();
 
   if (isMobile) {
     const { width, height } = page.viewportSize();
     await page.setViewportSize({ width: height, height: width });
     await expect(page.locator("#touch-controls-portrait")).toBeHidden();
-    await expect(page.locator("#touch-controls").getByRole("button", { name: "Light" })).toBeVisible();
+    const controls = page.locator("#touch-controls");
+    await expect(controls.getByRole("button", { name: "Light" })).toBeVisible();
+    await checkTouchLayout(page, controls);
     await page.getByRole("button", { name: "Pause match" }).tap();
   } else {
     await page.keyboard.press("Escape");

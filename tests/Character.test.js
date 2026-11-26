@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { CombatState } from "../src/combat/CombatSystem.js";
 import { Character } from "../src/entities/Character.js";
 import { CHARACTERS } from "../constants.js";
 
@@ -10,8 +11,7 @@ describe("Character in the battle arena", () => {
   beforeEach(() => {
     document.body.innerHTML = '<div id="arena"><div id="p1-sprite"></div><div id="cpu-sprite"></div></div>';
     const arenaEl = document.getElementById("arena");
-    Object.defineProperties(arenaEl, { offsetWidth: { value: 800 }, offsetHeight: { value: 500 } });
-    engine = { arenaEl, difficulty: "normal", matchHealth: 100, trails: [], playSound: vi.fn(), spawnParticles: vi.fn(), triggerKO: vi.fn() };
+    engine = { arenaEl, arenaWidth: 800, arenaHeight: 500, difficulty: "normal", matchHealth: 100, trails: [], playSound: vi.fn(), spawnParticles: vi.fn(), triggerKO: vi.fn() };
     fighter = engine.p1 = new Character(CHARACTERS[0], true, engine);
     enemy = engine.cpu = new Character(CHARACTERS[1], false, engine);
   });
@@ -82,7 +82,7 @@ describe("Character in the battle arena", () => {
     }
     fighter.vy = -300;
     fighter.update(16, enemy);
-    expect(fighter.y + 160).toBeLessThanOrEqual(engine.arenaEl.offsetHeight * .75);
+    expect(fighter.y + 160).toBeLessThanOrEqual(engine.arenaHeight * .75);
     expect(fighter.vy).toBe(0);
     fighter.update(16, enemy);
     expect(fighter.state).toBe("jump_fall");
@@ -165,6 +165,52 @@ describe("Character in the battle arena", () => {
     expect(aqua.hp).toBe(wounded);
     aqua.update(2000, enemy);
     expect(aqua.hp).toBeGreaterThan(wounded);
+  });
+
+  it.each(["attack_light", "attack_heavy"])("holds the %s fist at contact through hitstop, then retracts", moveId => {
+    const combat = fighter.combatState = new CombatState(fighter, engine);
+    combat.beginAttack(moveId);
+    fighter.setState(moveId);
+    combat.tick();
+    fighter.render();
+    expect(fighter.el.dataset.strikePhase).toBe("STARTUP");
+    expect(Number(fighter.el.style.getPropertyValue("--windup"))).toBeGreaterThan(0);
+    expect(Number(fighter.el.style.getPropertyValue("--extension"))).toBe(0);
+    while (!combat.isHitboxLive) combat.tick();
+    combat.applyHitstop(3);
+    for (let frame = 0; frame < 3; frame++) {
+      combat.tick();
+      fighter.render();
+      expect(fighter.el.dataset.strikePhase).toBe("ACTIVE");
+      expect(Number(fighter.el.style.getPropertyValue("--extension"))).toBe(1);
+    }
+    while (combat.isHitboxLive) combat.tick();
+    combat.tick();
+    fighter.render();
+    expect(fighter.el.dataset.strikePhase).toBe("RECOVERY");
+    expect(Number(fighter.el.style.getPropertyValue("--extension"))).toBeLessThan(1);
+    fighter.setState("ko");
+    fighter.render();
+    expect(fighter.el.hasAttribute("data-strike-phase")).toBe(false);
+  });
+
+  it("spaces dash afterimages and respects the player's reduced-motion setting", () => {
+    fighter.dashActive = 200;
+    engine.particleSystem = { motion: { matches: true } };
+    fighter.update(16, enemy);
+    expect(engine.trails).toHaveLength(0);
+    engine.particleSystem.motion.matches = false;
+    for (let frame = 0; frame < 4; frame++) fighter.update(16, enemy);
+    expect(engine.trails).toHaveLength(2);
+  });
+
+  it("uses the move's impact sound even when armor or difficulty changes its damage", () => {
+    fighter.takeDamage(6, 0, false, false, "attack_heavy");
+    expect(engine.playSound).toHaveBeenLastCalledWith("heavy");
+    fighter.takeDamage(22, 0, false, false, "attack_light");
+    expect(engine.playSound).toHaveBeenLastCalledWith("light");
+    fighter.takeDamage(22, 0, false, true, "attack_heavy");
+    expect(engine.playSound).toHaveBeenLastCalledWith("block");
   });
 
 });

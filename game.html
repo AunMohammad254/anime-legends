@@ -95,39 +95,52 @@
       </div>
 
       <div id="screen-battle" class="screen" aria-label="Battle arena" tabindex="-1">
-        <div id="arena">
-          <div class="parallax layer-1" id="bg-l1"></div>
-          <div class="parallax layer-2" id="bg-l2"></div>
-          <div class="parallax layer-3" id="bg-l3"></div>
-          <div class="ground" id="bg-ground"></div>
-          <div class="hud" id="hud-el">
-            <div class="hp-container">
-              <div class="fighter-label"><span id="p1-name">Player</span> <span id="p1-hp-text">100%</span></div>
-              <div class="hp-bar-outer"><div class="hp-bar-ghost" id="p1-hp-ghost"></div><div class="hp-bar-fill" id="p1-hp-fill"></div></div>
-              <div class="power-orbs" id="p1-orbs" aria-label="Player power"></div>
-              <div class="weapon-slot" id="p1-weapon"></div>
-            </div>
-            <div class="round-info">
-              <div class="timer" id="game-timer">60</div>
-              <div id="round-label"></div>
-              <button class="hud-button" id="pause-btn" onclick="togglePause()" aria-label="Pause match">Ⅱ Pause</button>
-            </div>
-            <div class="hp-container cpu-hud">
-              <div class="fighter-label"><span id="cpu-hp-text">100%</span> <span id="cpu-name">CPU</span></div>
-              <div class="hp-bar-outer"><div class="hp-bar-ghost" id="cpu-hp-ghost"></div><div class="hp-bar-fill" id="cpu-hp-fill"></div></div>
-              <div class="power-orbs" id="cpu-orbs" aria-label="Opponent power"></div>
-              <div class="weapon-slot" id="cpu-weapon"></div>
-            </div>
+        <div class="hud" id="hud-el">
+          <div class="hp-container">
+            <div class="fighter-label"><span class="hud-side">You</span><span id="p1-name">Player</span> <span id="p1-hp-text">100%</span></div>
+            <div class="hp-bar-outer"><div class="hp-bar-ghost" id="p1-hp-ghost"></div><div class="hp-bar-fill" id="p1-hp-fill"></div></div>
+            <div class="power-orbs" id="p1-orbs" aria-label="Player power"></div>
+            <div class="weapon-slot" id="p1-weapon"></div>
           </div>
+          <div class="round-info">
+            <div class="timer" id="game-timer">60</div>
+            <div id="round-label"></div>
+            <button class="hud-button" id="pause-btn" onclick="togglePause()" aria-label="Pause match">Ⅱ Pause</button>
+          </div>
+          <div class="hp-container cpu-hud">
+            <div class="fighter-label"><span id="cpu-hp-text">100%</span> <span id="cpu-name">CPU</span><span class="hud-side">CPU</span></div>
+            <div class="hp-bar-outer"><div class="hp-bar-ghost" id="cpu-hp-ghost"></div><div class="hp-bar-fill" id="cpu-hp-fill"></div></div>
+            <div class="power-orbs" id="cpu-orbs" aria-label="Opponent power"></div>
+            <div class="weapon-slot" id="cpu-weapon"></div>
+          </div>
+        </div>
+        <div class="match-messages">
           <div id="round-text" aria-hidden="true"></div>
           <div id="combo-counter" aria-hidden="true"></div>
-          <canvas id="vfx-layer" aria-hidden="true"></canvas>
-          <div id="p1-sprite" class="fighter"></div>
-          <div id="cpu-sprite" class="fighter"></div>
         </div>
-        <div id="touch-controls">
-          <div id="joystick-zone" aria-label="Move and jump"><div id="joystick-outer"><div id="joystick-inner"></div></div></div>
-          <div id="action-buttons">
+        <div class="arena-viewport">
+          <div class="arena-world">
+            <div id="arena">
+              <div class="parallax layer-1" id="bg-l1"></div>
+              <div class="parallax layer-2" id="bg-l2"></div>
+              <div class="parallax layer-3" id="bg-l3"></div>
+              <div class="ground" id="bg-ground"></div>
+              <canvas id="vfx-layer" aria-hidden="true"></canvas>
+              <div id="p1-sprite" class="fighter"></div>
+              <div id="cpu-sprite" class="fighter"></div>
+            </div>
+          </div>
+        </div>
+        <div id="touch-controls" class="touch-deck">
+          <div id="joystick-zone" class="move-stick" role="group" aria-label="Movement stick. Drag left or right to move, or up to jump.">
+            <div id="joystick-outer" class="stick-ring">
+              <span class="stick-mark mark-up" aria-hidden="true">↑ Jump</span>
+              <span class="stick-mark mark-left" aria-hidden="true">‹</span>
+              <span class="stick-mark mark-right" aria-hidden="true">›</span>
+              <div id="joystick-inner" class="stick-cap"></div>
+            </div>
+          </div>
+          <div id="action-buttons" class="action-pad" role="group" aria-label="Combat actions">
             <button type="button" class="touch-btn" data-key="KeyZ">Light</button>
             <button type="button" class="touch-btn" data-key="KeyX">Heavy</button>
             <button type="button" class="touch-btn" data-key="KeyC">Block</button>
@@ -135,9 +148,16 @@
             <button type="button" class="touch-btn dash-btn" data-key="Space">Dash</button>
           </div>
         </div>
-        <div id="touch-controls-portrait">
-          <div id="portrait-joystick-zone" aria-label="Move and jump"><div id="portrait-joystick-outer"><div id="portrait-joystick-inner"></div></div></div>
-          <div id="portrait-action-buttons">
+        <div id="touch-controls-portrait" class="touch-deck">
+          <div id="portrait-joystick-zone" class="move-stick" role="group" aria-label="Movement stick. Drag left or right to move, or up to jump.">
+            <div id="portrait-joystick-outer" class="stick-ring">
+              <span class="stick-mark mark-up" aria-hidden="true">↑ Jump</span>
+              <span class="stick-mark mark-left" aria-hidden="true">‹</span>
+              <span class="stick-mark mark-right" aria-hidden="true">›</span>
+              <div id="portrait-joystick-inner" class="stick-cap"></div>
+            </div>
+          </div>
+          <div id="portrait-action-buttons" class="action-pad" role="group" aria-label="Combat actions">
             <button type="button" class="touch-btn portrait-btn" data-key="KeyZ">Light</button>
             <button type="button" class="touch-btn portrait-btn" data-key="KeyX">Heavy</button>
             <button type="button" class="touch-btn portrait-btn" data-key="KeyC">Block</button>
@@ -162,7 +182,13 @@
         <div class="result-content">
           <h2 id="result-text" class="result-title"></h2>
           <p id="result-char"></p>
-          <div class="result-score"><strong id="final-score"></strong><span id="shards-earned"></span></div>
+          <div class="result-score">
+            <strong id="final-score"></strong><span id="shards-earned"></span>
+            <dl class="result-combos">
+              <div><dt>Longest combo</dt><dd id="match-combo"></dd></div>
+              <div><dt>Personal best</dt><dd id="personal-combo"></dd></div>
+            </dl>
+          </div>
           <div class="menu-btns">
             <button class="btn" onclick="preBattleCutscene()">Rematch</button>
             <button class="btn secondary" onclick="showScreen('character-select')">Choose fighter</button>

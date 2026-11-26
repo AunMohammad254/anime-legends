@@ -289,7 +289,11 @@ export class UIManager {
     let score = damageScore;
     if (survival) score += engine.survivalKills * 2500;
     else if (result === "VICTORY") score += 5000 + Math.ceil(p1.hp / p1.maxHp * 3000) + Math.ceil(Math.max(0, timer)) * 50;
-    const shards = state.recordBattle({ name: p1.data.name, score, date: new Date().toLocaleDateString() });
+    const bestCombo = p1.bestCombo;
+    const shards = state.recordBattle({ name: p1.data.name, score, bestCombo, date: new Date().toLocaleDateString() });
+    for (const [id, hits] of [["match-combo", bestCombo], ["personal-combo", state.data.bestCombo]]) {
+      byId(id).textContent = `${hits} ${hits === 1 ? "hit" : "hits"}`;
+    }
     byId("final-score").textContent = `${score.toLocaleString()} points`;
     byId("shards-earned").textContent = `+ ${shards} Spirit Shards`;
   }

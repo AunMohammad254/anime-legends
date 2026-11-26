@@ -260,6 +260,7 @@ describe("combat timing and defensive options", () => {
     expect(d.takeDamage.mock.lastCall[0]).toBeCloseTo(MOVE_DATA.special.damage / 1.4);
     expect(events.onShake).toHaveBeenLastCalledWith(6);
     expect(events.onComboUpdate).toHaveBeenLastCalledWith(2);
+    expect(a.bestCombo).toBe(2);
     advance(d.combatState, d.combatState.hitstopFrames + d.combatState.framesLeft);
     expect(d.combatState.state).toBe(FighterState.KNOCKDOWN);
     expect(d.combatState.canAct).toBe(false);
@@ -275,8 +276,12 @@ describe("combat timing and defensive options", () => {
     expect(resolveCollision(attacker, defender, "attack_light", { onShake })).toBe("blocked");
     expect(onShake).toHaveBeenCalledWith(1.5);
     expect(attacker.combo).toBeUndefined();
+    expect(attacker.bestCombo).toBeUndefined();
+    attacker.bestCombo = 3;
     defender.isBlocking = false;
     expect(resolveCollision(attacker, defender, "attack_light")).toBe("hit");
     expect(attacker.combo).toBe(1);
+    expect(attacker.bestCombo).toBe(3);
+    expect(defender.takeDamage).toHaveBeenLastCalledWith(8, -5, false, false, "attack_light");
   });
 });

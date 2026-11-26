@@ -1,11 +1,12 @@
 import { WEAPON_SKINS } from "../../constants.js";
+import { FighterState } from "../combat/MoveRegistry.js";
 import "./fighters.css";
 
 export function createFighterHTML(data) {
   return `<div class="fighter-inner fighter-${data.id}" aria-hidden="true" style="color:${data.color}">
-    <div class="sprite-part s-arm-l"></div><div class="sprite-part s-leg-l"></div>
+    <div class="sprite-part s-arm-l"><span class="s-forearm"></span></div><div class="sprite-part s-leg-l"></div>
     <div class="sprite-part s-leg-r"></div><div class="sprite-part s-body"></div>
-    <div class="sprite-part s-head"></div><div class="sprite-part s-arm-r"></div>
+    <div class="sprite-part s-head"></div><div class="sprite-part s-arm-r"><span class="s-forearm"></span></div>
   </div>`;
 }
 
@@ -14,7 +15,7 @@ export class Character {
     this.data = data;
     this.isPlayer = isPlayer;
     this.engine = engine;
-    this.x = engine.arenaEl.offsetWidth * (isPlayer ? 0.2 : 0.8);
+    this.x = engine.arenaWidth * (isPlayer ? 0.2 : 0.8);
     this.y = 0;
     this.vx = 0;
     this.vy = 0;
@@ -30,9 +31,11 @@ export class Character {
     this.dir = isPlayer ? 1 : -1;
     this.cooldowns = { attack: 0, dash: 0, special: 0, hurt: 0, ult: 0, actionLock: 0 };
     this.combo = 0;
+    this.bestCombo = 0;
     this.comboTimer = 0;
     this.isBlocking = false;
     this.dashActive = 0;
+    this.trailDelay = 0;
     this.weapon = null;
     this.ultCharge = 0;
     this.opacity = 1;
@@ -54,11 +57,10 @@ export class Character {
   update(dt, opponent) {
     if (this.state === "ko") return;
 
-    const arena = this.engine.arenaEl;
     const gravity = this.data.id === "aero" ? 0.53 : 0.6;
     this.vy += gravity;
     this.y = Math.max(0, this.y - this.vy);
-    const ceiling = Math.max(50, arena.offsetHeight * 0.75 - 160);
+    const ceiling = Math.max(50, this.engine.arenaHeight * 0.75 - 160);
     if (this.y > ceiling) {
       this.y = ceiling;
       this.vy = Math.max(this.vy, 0);
@@ -75,7 +77,7 @@ export class Character {
       const direction = this.x === opponent.x ? (this.isPlayer ? -1 : 1) : Math.sign(this.x - opponent.x);
       this.x += direction * (80 - gap) * 0.5;
     }
-    this.x = Math.max(45, Math.min(arena.offsetWidth - 45, this.x));
+    this.x = Math.max(45, Math.min(this.engine.arenaWidth - 45, this.x));
 
     for (const key in this.cooldowns) this.cooldowns[key] = Math.max(0, this.cooldowns[key] - dt);
     this.dashActive = Math.max(0, this.dashActive - dt);
@@ -113,7 +115,9 @@ export class Character {
       this.auraEl.style.transform = `scale(${1 + ratio})`;
       this.auraEl.style.opacity = 0.10 + ratio * 0.20;
     }
-    if (this.dashActive > 0) {
+    this.trailDelay = Math.max(0, this.trailDelay - dt);
+    if (this.dashActive > 0 && this.trailDelay === 0 && !this.engine.particleSystem?.motion?.matches) {
+      this.trailDelay = 48;
       this.engine.trails.push({ x: this.x, y: this.y, dir: this.dir, data: this.data, life: 1 });
     }
     this.opacity = this.data.id === "shadow" && this.dashActive > 0 ? 0.35 : Math.min(1, this.opacity + dt / 500);
@@ -150,10 +154,22 @@ export class Character {
 
   render() {
     if (!this.el) return;
+    // Freeze the silhouette at the same contact frame as the hitbox during hitstop and pause.
+    const combat = this.combatState;
+    if (combat?.isAttacking && combat.moveId === this.state) {
+      const { state, framesLeft, activeMove } = combat;
+      this.el.dataset.strikePhase = state;
+      const windup = state === FighterState.STARTUP ? 1 - framesLeft / activeMove.startupFrames : 0;
+      const extension = state === FighterState.RECOVERY
+        ? (framesLeft / activeMove.recoveryFrames) ** 2
+        : Number(state === FighterState.ACTIVE);
+      this.el.style.setProperty("--windup", windup);
+      this.el.style.setProperty("--extension", extension);
+    } else if (this.el.hasAttribute("data-strike-phase")) {
+      this.el.removeAttribute("data-strike-phase");
+    }
     this.el.className = `fighter ${this.state}${this.cooldowns.hurt > 0 && this.hp > 0 ? " hurt" : ""}`;
-    this.el.style.left = `${this.x - 50}px`;
-    this.el.style.bottom = `calc(25% + ${this.y}px)`;
-    this.el.style.transform = `scaleX(${this.dir})`;
+    this.el.style.transform = `translate3d(${this.x - 50}px, ${-this.y}px, 0) scaleX(${this.dir})`;
     this.el.style.opacity = this.opacity;
   }
 
@@ -161,7 +177,7 @@ export class Character {
     if (this.state !== "ko") this.state = state;
   }
 
-  takeDamage(damage, knockback = 0, isPassive = false, blocked = this.isBlocking) {
+  takeDamage(damage, knockback = 0, isPassive = false, blocked = this.isBlocking, moveId) {
     if (this.hp <= 0 || (this.dashActive > 0 && !isPassive)) return false;
     const attacker = this.isPlayer ? this.engine.cpu : this.engine.p1;
     let amount = damage;
@@ -182,7 +198,7 @@ export class Character {
       } else {
         this.cooldowns.hurt = 250;
         const heavy = amount > 15;
-        this.engine.playSound("light");
+        this.engine.playSound(moveId === "attack_heavy" ? "heavy" : "light");
         this.engine.spawnParticles(this.x, this.y + 80, heavy ? 18 : 7, this.data.color, heavy ? 100 : 40, heavy ? 450 : 320);
         this.spawnDmg(this.x, this.y + 100, Math.max(1, Math.round(amount)), heavy ? "#ffae66" : "#fff");
         knockback *= heavy ? 1.8 : 1.2;

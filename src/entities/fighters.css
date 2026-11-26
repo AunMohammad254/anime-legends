@@ -1,4 +1,4 @@
-/* All six pieces retain their own pivot for punches, kicks and running. */
+/* Character armor and silhouettes share the same animated joints. */
 .fighter-inner[class*="fighter-"] .s-body {
   left: 23px;
   width: 54px;
@@ -33,11 +33,14 @@
   border-bottom: 2px solid #282632;
   transform: rotate(-8deg);
 }
-.fighter-inner[class*="fighter-"] :is(.s-arm-l,.s-arm-r) {
-  width: 16px;
-  height: 54px;
-  border-radius: 6px 6px 9px 5px;
-  background: linear-gradient(155deg, currentColor 0 23%, #252d40 24% 45%, #e2b89e 46% 62%, currentColor 63% 70%, #283044 71% 85%, #f4c5a8 86%);
+/* Shoulder and elbow pivots let the front arm unfold from a fighting guard. */
+.fighter-inner[class*="fighter-"] :is(.s-arm-l, .s-arm-r) {
+  height: 32px;
+  width: 19px;
+  top: 43px;
+  transform-origin: 50% 7px;
+  border-radius: 7px 7px 6px 5px;
+  background: linear-gradient(155deg, currentColor 0 24%, #eaf1f3 25% 31%, #282e43 32% 66%, #cb907b 67%);
 }
 .fighter-inner[class*="fighter-"] :is(.s-leg-l,.s-leg-r) {
   width: 20px;
@@ -90,4 +93,83 @@
   opacity: .7;
   background: linear-gradient(90deg, transparent, currentColor);
   clip-path: polygon(55% 0,80% 6%,65% 23%,100% 40%,97% 47%,65% 41%,76% 66%,88% 95%,74% 100%,48% 71%,16% 100%,0 97%,30% 61%,34% 35%,8% 46%,4% 35%,33% 20%);
+}
+
+.fighter-inner .s-forearm {
+  position: absolute;
+  display: block;
+  width: 16px;
+  height: 29px;
+  top: 23px;
+  left: 1px;
+  border-radius: 5px 5px 3px 3px;
+  background: linear-gradient(166deg, #e4b797 0 28%, #252c3e 30% 45%, currentColor 46% 73%, #dfded7 74% 81%, #272a38 82%);
+  transform-origin: 50% 3px;
+  transform: rotate(-77deg);
+}
+.fighter-inner .s-forearm::after {
+  content: "";
+  position: absolute;
+  left: -2px;
+  top: 22px;
+  width: 21px;
+  height: 19px;
+  border-radius: 5px 7px 7px 5px;
+  background: linear-gradient(155deg, #ffe1b9 0 24%, #eeb38f 25% 69%, #ae766d 70%);
+  box-shadow: inset -2px -2px 0 #32263888;
+}
+.fighter-inner .s-arm-r .s-forearm { transform: rotate(-104deg); }
+.fighter:is([class*="idle_"], .run, .jump_rise, .jump_fall) .s-arm-r { transform: rotate(28deg); }
+.fighter:is([class*="idle_"], .run, .jump_rise, .jump_fall) .s-arm-l { transform: rotate(-13deg); }
+
+/* Simulation values range from zero to one. Active frames keep the lead fist
+   extended, while heavy punches use a deeper crouch and a longer follow-through. */
+.fighter[data-strike-phase] {
+  --lunge: 10px;
+  --sit: 4px;
+  --reach: 5px;
+  --coil-angle: 28deg;
+  --torso-angle: 6deg;
+  --stride: 11deg;
+}
+.fighter.attack_heavy[data-strike-phase] {
+  --lunge: 21px;
+  --sit: 14px;
+  --reach: 15px;
+  --coil-angle: 64deg;
+  --torso-angle: 10deg;
+  --stride: 22deg;
+}
+.fighter[data-strike-phase] .fighter-inner {
+  transform-origin: 50% 93%;
+  transform: translate(calc(var(--extension) * var(--lunge) - var(--windup) * var(--sit)), calc(var(--windup) * var(--sit))) rotate(calc(var(--extension) * var(--torso-angle) - var(--windup) * var(--torso-angle)));
+}
+.fighter[data-strike-phase] .sprite-part { transition: none; }
+.fighter[data-strike-phase] .s-arm-r {
+  transform: translateX(calc(var(--extension) * var(--reach))) rotate(calc(28deg + var(--windup) * var(--coil-angle) - var(--extension) * 127deg));
+}
+.fighter[data-strike-phase] .s-arm-r .s-forearm {
+  transform: rotate(calc(-104deg - var(--windup) * 16deg + var(--extension) * 108deg));
+}
+.fighter[data-strike-phase] .s-arm-l {
+  transform: translateY(calc(-4px * var(--windup))) rotate(calc(-13deg - 37deg * var(--windup) + 43deg * var(--extension)));
+}
+.fighter[data-strike-phase] .s-leg-l {
+  transform: rotate(calc(8deg + var(--stride) * var(--extension)));
+}
+.fighter[data-strike-phase] .s-leg-r {
+  transform: rotate(calc(-8deg - var(--stride) * var(--windup) - 6deg * var(--extension)));
+}
+.fighter[data-strike-phase="ACTIVE"] { z-index: 54; }
+.fighter[data-strike-phase="ACTIVE"] .s-arm-r .s-forearm::before {
+  content: "";
+  position: absolute;
+  inset: -22px -7px 0;
+  background: linear-gradient(to bottom, transparent, currentColor 58%, #fff7da);
+  clip-path: polygon(6% 15%, 19% 63%, 26% 96%, 19% 100%, 8% 67%, 3% 20%, 55% 57%, 65% 0, 80% 79%, 68% 98%, 63% 46%, 51% 83%);
+  pointer-events: none;
+}
+.fighter.attack_heavy[data-strike-phase="ACTIVE"] .s-arm-r .s-forearm::before { inset: -47px -11px -3px; }
+@media (prefers-reduced-motion: reduce) {
+  .fighter[data-strike-phase] .s-arm-r .s-forearm::before { display: none; }
 }

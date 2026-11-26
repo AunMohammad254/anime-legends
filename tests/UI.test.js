@@ -64,10 +64,12 @@ describe("game screens", () => {
   });
 
   it("saves the result and displays it on the leaderboard without interpreting saved names as HTML", () => {
-    const player = { data: CHARACTERS[0], hp: 50, maxHp: 100 };
+    const player = { data: CHARACTERS[0], hp: 50, maxHp: 100, bestCombo: 1 };
     const opponent = { data: CHARACTERS[1], hp: 0, maxHp: 100 };
     ui.handleGameEnd("VICTORY", player, opponent, 10);
     expect(document.querySelector("#result-char").textContent).toContain("Blaze Warrior wins");
+    expect(byId("match-combo").textContent).toBe("1 hit");
+    expect(byId("personal-combo").textContent).toBe("1 hit");
     expect(state.data.highScores).toHaveLength(1);
     expect(state.spiritShards).toBeGreaterThan(0);
     state.data.highScores[0].name = "<i>saved name</i>";
@@ -313,8 +315,11 @@ describe("game screens", () => {
     ["SURVIVAL_END", 2, "cleared 2 waves.", 5500],
   ])("records %s with %i cleared waves", (result, kills, text, score) => {
     engine.survivalKills = kills;
-    engine.onGameEnd(result, { data: CHARACTERS[0], hp: 50, maxHp: 100 }, { data: CHARACTERS[1], hp: 50, maxHp: 100 }, 0);
+    state.data.bestCombo = 4;
+    engine.onGameEnd(result, { data: CHARACTERS[0], hp: 50, maxHp: 100, bestCombo: 0 }, { data: CHARACTERS[1], hp: 50, maxHp: 100 }, 0);
     expect(byId("result-char").textContent).toContain(text);
+    expect(byId("match-combo").textContent).toBe("0 hits");
+    expect(byId("personal-combo").textContent).toBe("4 hits");
     expect(state.data.highScores[0].score).toBe(score);
     expect(state.spiritShards).toBe(Math.floor(score / 100));
   });

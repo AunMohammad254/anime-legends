@@ -129,6 +129,9 @@ h1, h2, .result-title, .matchup strong, .matchup em, #round-text, #combo-counter
 .result-score { display: grid; margin: 1.25rem 0; }
 #final-score { font-size: 1.5rem; }
 #shards-earned { color: var(--cyan); }
+.result-combos { display: grid; grid-template-columns: 1fr 1fr; margin-top: .85rem; padding-top: .75rem; border-top: 1px solid var(--border); }
+.result-combos dt { color: var(--muted); font-size: .8rem; }
+.result-combos dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
 .scores-shell { max-width: 760px; }
 #leaderboard-content { overflow: auto; }
 #leaderboard-content table { width: 100%; border-collapse: collapse; text-align: left; font-variant-numeric: tabular-nums; }
@@ -143,6 +146,11 @@ h1, h2, .result-title, .matchup strong, .matchup em, #round-text, #combo-counter
 .toast-container { position: absolute; bottom: 1rem; left: 50%; transform: translateX(-50%); max-width: 90%; width: max-content; pointer-events: none; z-index: 2000; }
 .toast { padding: .7rem 1rem; background: var(--panel); border: 1px solid var(--cyan); border-radius: 5px; box-shadow: 0 6px 25px #0009; }
 .toast.error { border-color: var(--orange); }
+
+.arena-viewport, .arena-world, .match-messages { position: absolute; inset: 0; }
+.arena-viewport { overflow: hidden; }
+.match-messages { z-index: 120; pointer-events: none; }
+.hud-side { display: none; }
 
 /* The arena's walkable floor starts at 75% of its height. */
 #arena { position: absolute; inset: 0; overflow: hidden; background: #20283f; }
@@ -191,7 +199,7 @@ h1, h2, .result-title, .matchup strong, .matchup em, #round-text, #combo-counter
 .on-cooldown .orb-inner { background: #93a4c5; }
 .weapon-slot { margin-top: 5px; font-size: .75rem; font-weight: 800; }
 .cpu-hud { text-align: right; }
-#vfx-layer { z-index: 40; width: 100%; height: 100%; }
+#vfx-layer { z-index: 70; width: 100%; height: 100%; }
 #round-text { position: absolute; top: 29%; width: 100%; text-align: center; font-size: clamp(2.8rem, 9vw, 7rem); z-index: 120; color: var(--cream); text-shadow: 0 4px 0 #122030; pointer-events: none; transition: opacity .16s; }
 /* EFFECTS & WEAPONS */
 .aura {
@@ -274,13 +282,6 @@ h1, h2, .result-title, .matchup strong, .matchup em, #round-text, #combo-counter
   z-index: 60;
 }
 
-.particle {
-  position: absolute;
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 70;
-}
-
 .bg-particle {
   position: absolute;
   background: #fff;
@@ -293,6 +294,8 @@ h1, h2, .result-title, .matchup strong, .matchup em, #round-text, #combo-counter
 /* SPRITE & ANIMATIONS */
 .fighter {
   position: absolute;
+  left: 0;
+  bottom: 25%;
   width: 100px;
   height: 160px;
   transform-origin: bottom center;
@@ -484,160 +487,6 @@ h1, h2, .result-title, .matchup strong, .matchup em, #round-text, #combo-counter
   transition: transform 0.1s;
 }
 
-.fighter.attack_light .s-arm-r {
-  animation: atk-light 0.18s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-}
-
-.fighter.attack_light .s-arm-l {
-  animation: atk-light-l 0.18s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-}
-
-.fighter.attack_light .s-leg-r {
-  animation: atk-step 0.18s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-}
-
-.fighter.attack_light .fighter-inner {
-  animation: lean-fwd 0.18s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-}
-
-@keyframes atk-light {
-  0% {
-    transform: rotate(-15deg);
-  }
-  30% {
-    transform: rotate(30deg) translateY(-5px);
-  } /* Windup */
-  60% {
-    transform: rotate(-100deg) scaleX(1.3) scaleY(0.8);
-  } /* Impact stretch */
-  100% {
-    transform: rotate(-15deg);
-  }
-}
-
-@keyframes atk-light-l {
-  0% {
-    transform: rotate(15deg);
-  }
-  30% {
-    transform: rotate(-20deg);
-  }
-  60% {
-    transform: rotate(60deg) translateX(-5px);
-  } /* Pull back for counter-balance */
-  100% {
-    transform: rotate(15deg);
-  }
-}
-
-@keyframes atk-step {
-  0% {
-    transform: rotate(-5deg);
-  }
-  60% {
-    transform: rotate(25deg) translateY(-5px) translateX(10px);
-  } /* Step into punch */
-  100% {
-    transform: rotate(-5deg);
-  }
-}
-
-@keyframes lean-fwd {
-  0% {
-    transform: translateX(0) skewX(0);
-  }
-  30% {
-    transform: translateX(-8px) skewX(-5deg);
-  } /* Lean back */
-  60% {
-    transform: translateX(18px) skewX(10deg);
-  } /* Lunge forward */
-  100% {
-    transform: translateX(0) skewX(0);
-  }
-}
-
-.fighter.attack_heavy .s-arm-r {
-  animation: atk-heavy 0.4s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.fighter.attack_heavy .s-arm-l {
-  animation: atk-heavy-l 0.4s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.fighter.attack_heavy .s-leg-r {
-  animation: atk-heavy-step 0.4s forwards
-    cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.fighter.attack_heavy .fighter-inner {
-  animation: lean-heavy 0.4s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-@keyframes atk-heavy {
-  0% {
-    transform: rotate(-15deg);
-    width: 12px;
-  }
-  25% {
-    transform: rotate(60deg) translateY(-15px) scale(1.2);
-    width: 18px;
-  } /* Deep windup */
-  50% {
-    transform: rotate(-140deg) translateY(25px) scale(2.2);
-    width: 80px;
-  } /* Smash */
-  100% {
-    transform: rotate(-15deg);
-    width: 12px;
-  }
-}
-
-@keyframes atk-heavy-l {
-  0% {
-    transform: rotate(15deg);
-  }
-  25% {
-    transform: rotate(-40deg) translateX(10px);
-  } /* Guard/Pull */
-  50% {
-    transform: rotate(80deg) translateX(-15px);
-  }
-  100% {
-    transform: rotate(15deg);
-  }
-}
-
-@keyframes atk-heavy-step {
-  0% {
-    transform: rotate(-5deg);
-  }
-  25% {
-    transform: rotate(-20deg) translateY(-10px);
-  } /* Lift leg */
-  50% {
-    transform: rotate(40deg) translateY(5px) translateX(20px);
-  } /* Stomp */
-  100% {
-    transform: rotate(-5deg);
-  }
-}
-
-@keyframes lean-heavy {
-  0% {
-    transform: translateX(0) rotate(0) skewX(0);
-  }
-  25% {
-    transform: translateX(-20px) rotate(-15deg) skewX(-10deg);
-  }
-  50% {
-    transform: translateX(45px) rotate(35deg) skewX(20deg);
-  }
-  100% {
-    transform: translateX(0) rotate(0) skewX(0);
-  }
-}
-
 .fighter.block .s-arm-l {
   transform: translate(15px, 5px) rotate(-45deg);
 }
@@ -776,35 +625,173 @@ h1, h2, .result-title, .matchup strong, .matchup em, #round-text, #combo-counter
 
 
 #combo-counter { font-size: clamp(1.6rem, 4vw, 3rem); top: 18%; white-space: nowrap; }
-#touch-controls, #touch-controls-portrait { display: none; }
-#touch-controls.active { display: flex; position: absolute; inset: 0; pointer-events: none; z-index: 170; }
-#joystick-zone, #portrait-joystick-zone {
-  width: clamp(88px, 17vw, 145px); aspect-ratio: 1; flex-shrink: 0;
-  touch-action: none; user-select: none; pointer-events: auto;
+/* Touch matches reserve a row for health, a clear stage and a two-thumb deck. */
+.touch-deck { display: none; }
+#screen-battle.active:is(.portrait-mode, :has(> #touch-controls.active)) {
+  display: grid;
+  grid-template: "hud" auto "announcements" 1.1rem "stage" minmax(0, 1fr) "deck" auto / minmax(0, 1fr);
+  background: #0e1d2a;
 }
-#joystick-zone { position: absolute; bottom: max(.65rem, env(safe-area-inset-bottom)); left: max(.8rem, env(safe-area-inset-left)); }
-#joystick-outer, #portrait-joystick-outer {
-  width: 100%; height: 100%; border: 2px solid #badde0a8; border-radius: 50%; display: grid; place-items: center;
-  background: radial-gradient(circle, #18334035, #0e1c2cd9); box-shadow: 0 0 0 4px #101f3080;
+#screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) .arena-viewport {
+  position: relative;
+  grid-area: stage;
+  min-height: 0;
+  --world-scale: .9;
 }
-#joystick-inner, #portrait-joystick-inner { width: 40%; aspect-ratio: 1; border-radius: 50%; background: var(--cyan); border: 4px solid #3a737e; pointer-events: none; }
-#action-buttons, #portrait-action-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: .35rem; pointer-events: auto; }
-#action-buttons { position: absolute; bottom: max(.6rem, env(safe-area-inset-bottom)); right: max(.8rem, env(safe-area-inset-right)); }
+/* Scale scenery, fighters, hit effects and projectiles in the same coordinate system. */
+#screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) .arena-world {
+  inset: 0 auto auto 0;
+  width: calc(100% / var(--world-scale));
+  height: calc(100% / var(--world-scale));
+  transform: scale(var(--world-scale));
+  transform-origin: top left;
+}
+#screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) .hud {
+  position: static;
+  grid-area: hud;
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  column-gap: clamp(.45rem, 2vw, 1.1rem);
+  padding: max(.3rem, env(safe-area-inset-top)) max(.65rem, env(safe-area-inset-right)) 0 max(.65rem, env(safe-area-inset-left));
+  background: linear-gradient(150deg, #172a38, #101e29 55%, #272831);
+}
+#screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) .fighter-label {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-start;
+  column-gap: .35rem;
+  row-gap: 0;
+  font-size: clamp(.72rem, 2.8vw, .91rem);
+  line-height: 1.2;
+}
+#screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) .hud-side {
+  display: inline;
+  color: var(--cyan);
+  font-size: .62rem;
+  letter-spacing: .06em;
+}
+#screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) .cpu-hud .fighter-label { justify-content: flex-end; }
+#screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) .cpu-hud .hud-side { color: #ffb280; }
+#screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) :is(#p1-hp-text, #cpu-hp-text) {
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  color: #d7e4e8;
+}
+#screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) .hp-bar-outer { height: 10px; }
+#screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) .round-info {
+  display: grid;
+  grid-template-columns: auto 44px;
+  align-items: center;
+  gap: 0 .35rem;
+}
+#screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) .timer { grid-area: 1 / 1; font-size: 1.8rem; min-width: 1.1em; }
+#screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) .hud-button {
+  grid-area: 1 / 2 / 3;
+  min-height: 44px;
+  min-width: 44px;
+  margin: 0;
+  padding: 0;
+  font-size: 0;
+  background: #172b39;
+}
+#screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) .hud-button::before {
+  content: "";
+  display: inline-block;
+  width: 11px;
+  height: 15px;
+  border-inline: 3px solid currentColor;
+}
+#screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) #round-label { font-size: .65rem; line-height: 1.05; }
+#screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) .weapon-slot { margin-top: 2px; font-size: .66rem; }
+#screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) .weapon-slot:empty { display: none; }
+#screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) .orb { width: 11px; height: 8px; }
+#screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) .match-messages {
+  position: relative;
+  grid-area: announcements;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  background: #101e29;
+  border-bottom: 1px solid #3a5361;
+}
+#screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) .match-messages :is(#round-text, #combo-counter) {
+  position: static;
+  width: auto;
+  transform: none;
+  font-size: 1rem;
+  line-height: 1;
+  text-shadow: none;
+}
+#screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) #round-text { color: #ffab72; }
+#touch-controls.active, #screen-battle.portrait-mode #touch-controls-portrait {
+  grid-area: deck;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .7rem;
+  padding: .45rem max(4vw, env(safe-area-inset-right)) max(.45rem, env(safe-area-inset-bottom)) max(4vw, env(safe-area-inset-left));
+  border-top: 1px solid #627680;
+  background: linear-gradient(175deg, #263a46, #142633 22%, #0d1824);
+  user-select: none;
+  -webkit-user-select: none;
+}
+.move-stick { width: clamp(86px, 23dvh, 130px); aspect-ratio: 1; flex: none; touch-action: none; }
+.stick-ring {
+  width: 100%; height: 100%; border-radius: 50%; position: relative; display: grid; place-items: center;
+  background: radial-gradient(circle, #284757 10%, #102231 62%, #263d4c);
+  border: 2px solid #698895;
+  box-shadow: 0 0 0 3px #102331, inset 0 0 0 3px #243b49;
+}
+.stick-cap {
+  width: 38%; aspect-ratio: 1; pointer-events: none; z-index: 1; border: 2px solid #82ccd0; border-radius: 50%;
+  background: radial-gradient(ellipse at 40% 28%, #79bbc0, #477386 65%, #244653); box-shadow: 0 3px 5px #0008;
+}
+.stick-mark { position: absolute; color: #b6ced5; pointer-events: none; font-weight: 800; line-height: 1; }
+.mark-left, .mark-right { top: 50%; transform: translateY(-56%); font-size: 1.25rem; }
+.mark-left { left: 9%; }
+.mark-right { right: 9%; }
+.mark-up { top: 10%; font-size: .62rem; text-transform: uppercase; }
+.move-stick[data-horizontal="left"] .mark-left, .move-stick[data-horizontal="right"] .mark-right, .move-stick[data-jump="true"] .mark-up {
+  color: white; text-shadow: 0 0 6px var(--cyan);
+}
+.action-pad {
+  display: grid;
+  grid-template-areas: "dash light heavy" "dash block power";
+  grid-template-columns: repeat(3, minmax(48px, 1fr));
+  gap: .4rem;
+  width: clamp(190px, 30vw, 294px);
+}
 .touch-btn {
-  width: clamp(55px, 9vw, 68px); min-height: 44px; border-radius: 10px; border: 1px solid #9bafb7;
-  background: #132333db; color: var(--cream); font-size: .8rem; font-weight: 800; user-select: none; touch-action: none;
+  --key-color: #c1d0d5;
+  min-width: 0; min-height: 44px; width: 100%;
+  padding: .2rem; border: 1px solid #738696; border-bottom: 3px solid var(--key-color); border-radius: 9px;
+  background: linear-gradient(155deg, #304757, #203241);
+  color: var(--cream); font-size: clamp(.75rem, 2.9vw, .9rem); font-weight: 750;
+  touch-action: none; box-shadow: 0 2px 0 #09141c;
 }
-.touch-btn[data-key="KeyZ"] { color: var(--cyan); }
-.touch-btn[data-key="KeyX"] { color: #ffb785; }
-.touch-btn.pressed { background: #355364; transform: scale(.94); }
-.dash-btn { width: 100%; grid-column: 1 / -1; }
-#screen-battle.portrait-mode #arena { bottom: clamp(175px, 30dvh, 245px); }
-#screen-battle.portrait-mode #touch-controls-portrait {
-  display: flex; align-items: center; justify-content: space-around; position: absolute; bottom: 0; left: 0; right: 0;
-  height: clamp(175px, 30dvh, 245px); padding: .5rem .7rem max(.5rem, env(safe-area-inset-bottom)); border-top: 1px solid var(--border);
-  background: linear-gradient(135deg, #0d1824, #1b303c);
+.touch-btn[data-key="KeyZ"] { grid-area: light; --key-color: #82e6e4; }
+.touch-btn[data-key="KeyX"] { grid-area: heavy; --key-color: #ffab72; }
+.touch-btn[data-key="KeyC"] { grid-area: block; --key-color: #abbedb; }
+.touch-btn[data-key="KeyV"] { grid-area: power; --key-color: #cea6ff; }
+.touch-btn[data-key="Space"] { grid-area: dash; --key-color: #a3cfaf; }
+.touch-btn.pressed { color: white; background: #466373; border-color: var(--key-color); box-shadow: inset 0 2px 5px #09141c; }
+#screen-battle.portrait-mode .action-pad {
+  grid-template-areas: "light heavy" "block power" "dash dash";
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: clamp(128px, 43vw, 250px);
 }
-#portrait-joystick-zone { width: clamp(90px, 29vw, 145px); }
+#screen-battle.portrait-mode .move-stick { width: clamp(96px, 31vw, 152px); }
+#screen-battle.portrait-mode #touch-controls-portrait { padding-block: .8rem max(.8rem, env(safe-area-inset-bottom)); }
+@media (orientation: landscape) and (max-height: 440px) {
+  #screen-battle:has(> #touch-controls.active) .arena-viewport { --world-scale: .65; }
+  #touch-controls.active { padding-block: .32rem max(.32rem, env(safe-area-inset-bottom)); }
+}
+@media (orientation: landscape) and (max-height: 340px) {
+  #screen-battle:has(> #touch-controls.active) .arena-viewport { --world-scale: .52; }
+}
 @media (max-width: 760px) {
   .char-select-layout { grid-template-columns: 1fr; }
   .char-select-right-panel { display: grid; grid-template-columns: 1fr auto; align-items: end; }
@@ -847,8 +834,15 @@ h1, h2, .result-title, .matchup strong, .matchup em, #round-text, #combo-counter
   .title-menu h1 em::before { content: " "; }
   .shard-display, .display-actions { margin: .6rem 0; }
   .title-menu .btn { min-height: 36px; padding: .36rem .8rem; }
-  .touch-btn { min-height: 40px; }
+}
+@keyframes damage-caption {
+  0%, 80% { opacity: 1; }
+  to { opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  .damage-num {
+    animation-name: damage-caption !important;
+    animation-duration: .75s !important;
+  }
 }

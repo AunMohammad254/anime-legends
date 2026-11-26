@@ -210,6 +210,21 @@ describe("State", () => {
     );
   });
 
+  it("keeps the longest combo across completed matches, reloads and older saves", () => {
+    localStorage.setItem(state.storageKey, JSON.stringify({ spiritShards: 10 }));
+    state.load();
+    expect(state.data.bestCombo).toBe(0);
+    const entry = { name: "Blaze Warrior", score: 100, date: "11/24/2026" };
+    const secondTab = new GameState();
+    state.recordBattle({ ...entry, bestCombo: 4 });
+    for (const bestCombo of [2, -1, "9"]) {
+      secondTab.recordBattle({ ...entry, bestCombo });
+    }
+    const restored = new GameState();
+    expect(restored.data.bestCombo).toBe(4);
+    expect(restored.spiritShards).toBe(14);
+  });
+
   it("refreshes the browser state on save and clear events from another tab", () => {
     const updates = vi.fn();
     browserState.on("progressLoaded", updates);

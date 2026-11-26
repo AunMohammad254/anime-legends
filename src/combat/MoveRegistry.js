@@ -34,7 +34,7 @@ export const MOVE_DATA = {
     blockstunFrames: 6,
     hitLevel: AttackLevel.MID,
     cancelable: true, // Can cancel recovery into specials
-    hitstop: 4, // Frames both fighters freeze on hit
+    hitstop: 3, // Frames both fighters freeze on hit
     hitbox: { xOffset: 20, yOffset: 60, width: 90, height: 60 },
     hurtbox: { xOffset: -30, yOffset: 20, width: 60, height: 120 },
   },
@@ -48,7 +48,7 @@ export const MOVE_DATA = {
     blockstunFrames: 14,
     hitLevel: AttackLevel.HIGH,
     cancelable: false,
-    hitstop: 10,
+    hitstop: 6,
     hitbox: { xOffset: 25, yOffset: 30, width: 125, height: 90 },
     hurtbox: { xOffset: -30, yOffset: 20, width: 60, height: 120 },
   },

@@ -27,6 +27,7 @@ function readProgress(saved) {
   const activeBoosts = knownIds(saved?.activeBoosts, STAT_BOOSTS);
   return {
     spiritShards: validAmount(saved?.spiritShards) ? saved.spiritShards : 0,
+    bestCombo: validAmount(saved?.bestCombo) ? saved.bestCombo : 0,
     unlockedCharacters: knownIds(saved?.unlockedCharacters, CHARACTERS, ["blaze"]),
     unlockedSkins,
     activeSkinId: unlockedSkins.includes(saved?.activeSkinId) ? saved.activeSkinId : "default",
@@ -217,6 +218,9 @@ export class GameState {
     if (!validScore(entry)) return 0;
     const reward = Math.min(Math.floor(entry.score / 100), Number.MAX_SAFE_INTEGER - this.spiritShards);
     this.data.spiritShards += reward;
+    if (validAmount(entry.bestCombo)) {
+      this.data.bestCombo = Math.max(this.data.bestCombo, entry.bestCombo);
+    }
     this.data.highScores = topTen([...this.data.highScores, entry]);
     this.save();
     this.emit("scoresUpdated", this.data.highScores);

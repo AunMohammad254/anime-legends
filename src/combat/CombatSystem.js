@@ -316,7 +316,7 @@ export function resolveCollision(attacker, defender, moveId, engine) {
   if (acs) acs.applyHitstop(hitstopFrames);
   if (dcs) dcs.applyHitstop(hitstopFrames);
 
-  defender.takeDamage(dmg, kb, false, result === "blocked");
+  defender.takeDamage(dmg, kb, false, result === "blocked", moveId);
 
   // ── Screen Shake (weight-mapped to hitstop) ───────────────────────────────
   if (engine?.onShake) {
@@ -334,6 +334,7 @@ export function resolveCollision(attacker, defender, moveId, engine) {
   // ── Combo meter ───────────────────────────────────────────────────────────
   if (result !== "whiff" && result !== "blocked") {
     attacker.combo = (attacker.combo || 0) + 1;
+    attacker.bestCombo = Math.max(attacker.bestCombo ?? 0, attacker.combo);
     attacker.comboTimer = 1500;
     if (attacker.isPlayer && engine?.onComboUpdate) {
       engine.onComboUpdate(attacker.combo);
