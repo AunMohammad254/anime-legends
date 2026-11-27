@@ -294,6 +294,18 @@ export class UIManager {
     for (const [id, hits] of [["match-combo", bestCombo], ["personal-combo", state.data.bestCombo]]) {
       byId(id).textContent = `${hits} ${hits === 1 ? "hit" : "hits"}`;
     }
+    const guards = p1.perfectGuards ?? 0;
+    const counters = p1.countersLanded ?? 0;
+    byId("perfect-guards").textContent = String(guards);
+    byId("counters-landed").textContent = String(counters);
+    const insight = byId("rematch-insight");
+    if (guards > counters) {
+      insight.textContent = "You timed a perfect guard. Next time the guard flashes, tap Light (Z) right away, even while holding Block.";
+    } else if (counters > 0) {
+      insight.textContent = "Every perfect guard became a counter. Keep watching their heavy windup for the next opening.";
+    } else {
+      insight.textContent = "On the rematch, watch for a heavy punch. Start blocking just before impact, then tap Light (Z) to counter.";
+    }
     byId("final-score").textContent = `${score.toLocaleString()} points`;
     byId("shards-earned").textContent = `+ ${shards} Spirit Shards`;
   }

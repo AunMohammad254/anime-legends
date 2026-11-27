@@ -308,6 +308,55 @@ describe("game screens", () => {
     ], 100);
   });
 
+  it("telegraphs a heavy, prompts Light only during the opening, and confirms a landed counter", () => {
+    const player = { data: CHARACTERS[0], hp: 100, maxHp: 100, power: 1, cooldowns: { ult: 0 }, countersLanded: 0, combatState: { counterFrames: 0 } };
+    const cpu = { ...player, data: CHARACTERS[1], combatState: { state: "STARTUP", moveId: "attack_light" } };
+    const cue = byId("guard-cue");
+    const screen = byId("screen-battle");
+    engine.onHUDUpdate(player, cpu, 59);
+    expect(cue.textContent).toBe("");
+    cpu.combatState.moveId = "attack_heavy";
+    engine.onHUDUpdate(player, cpu, 59);
+    expect(screen.dataset.guardCue).toBe("windup");
+    expect(cue.textContent).toContain("Heavy windup");
+    cpu.combatState.state = "RECOVERY";
+    player.combatState.counterFrames = 27;
+    engine.onHUDUpdate(player, cpu, 58);
+    expect(screen.dataset.guardCue).toBe("opening");
+    expect(cue.textContent).toContain("Light (Z)");
+    player.combatState.counterFrames = 0;
+    engine.onHUDUpdate(player, cpu, 58);
+    expect(cue.textContent).toBe("");
+
+    player.countersLanded++;
+    engine.onHUDUpdate(player, cpu, 58);
+    expect(cue.textContent).toBe("Counter hit!");
+    vi.advanceTimersByTime(801);
+    engine.onHUDUpdate(player, cpu, 57);
+    expect(cue.textContent).toBe("");
+    // A knockout has its own banner, and a rematch starts with a fresh player.
+    player.countersLanded++;
+    cpu.hp = 0;
+    engine.onHUDUpdate(player, cpu, 57);
+    expect(cue.textContent).toBe("");
+    cpu.hp = 100;
+    engine.onHUDUpdate({ ...player, countersLanded: 0 }, cpu, 60);
+    expect(cue.textContent).toBe("");
+  });
+
+  it.each([
+    [0, 0, "before impact"],
+    [3, 1, "right away"],
+    [2, 2, "Every perfect guard became a counter"],
+  ])("explains the next rematch after %i perfect guards and %i landed counters", (guards, counters, advice) => {
+    const fighter = { data: CHARACTERS[0], hp: 40, maxHp: 100, bestCombo: 2, perfectGuards: guards, countersLanded: counters };
+    const opponent = { data: CHARACTERS[1], hp: 0, maxHp: 100 };
+    engine.onGameEnd("VICTORY", fighter, opponent, 25);
+    expect(byId("perfect-guards").textContent).toBe(String(guards));
+    expect(byId("counters-landed").textContent).toBe(String(counters));
+    expect(byId("rematch-insight").textContent).toContain(advice);
+  });
+
   it.each([
     ["DRAW", 0, "tied", 500],
     ["DEFEAT", 0, "Shadow Ninja wins", 500],

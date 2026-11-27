@@ -1,4 +1,5 @@
 import { CHARACTERS, STAT_BOOSTS, WEAPON_SKINS } from "../../constants.js";
+import { isValidProgress } from "../cloud/progressSchema.js";
 
 function validAmount(value) {
   return Number.isSafeInteger(value) && value >= 0;
@@ -45,6 +46,7 @@ export class GameState {
     this.data = readProgress();
     this.lastSnapshot = null;
     this.pendingSave = false;
+    this.needsRecovery = true;
     this.load();
   }
 
@@ -63,27 +65,49 @@ export class GameState {
     try {
       const snapshot = localStorage.getItem(this.storageKey);
       if (snapshot === this.lastSnapshot) return;
-      this.data = readProgress(JSON.parse(snapshot));
+      const saved = JSON.parse(snapshot);
+      this.data = readProgress(saved);
       this.lastSnapshot = snapshot;
+      this.needsRecovery = !isValidProgress(saved);
     } catch {
+      this.needsRecovery = true;
       return;
     }
     this.emit("progressLoaded", this.data);
   }
 
+  persist(progress) {
+    const snapshot = JSON.stringify(progress);
+    localStorage.setItem(this.storageKey, snapshot);
+    this.lastSnapshot = snapshot;
+    this.pendingSave = false;
+    this.needsRecovery = false;
+  }
+
   save() {
     try {
-      const snapshot = JSON.stringify(this.data);
-      localStorage.setItem(this.storageKey, snapshot);
-      this.lastSnapshot = snapshot;
-      this.pendingSave = false;
-      return true;
+      this.persist(this.data);
     } catch {
       const firstFailure = !this.pendingSave;
       this.pendingSave = true;
+      this.needsRecovery = false; // New progress still exists in this session.
       if (firstFailure) this.emit("storageUnavailable");
+    }
+    this.emit("progressSaved", this.data);
+    return !this.pendingSave;
+  }
+
+  replaceProgress(progress) {
+    if (!isValidProgress(progress)) return false;
+    const restored = readProgress(progress);
+    try {
+      this.persist(restored);
+    } catch {
       return false;
     }
+    this.data = restored;
+    this.emit("progressLoaded", restored);
+    return true;
   }
 
   get spiritShards() {

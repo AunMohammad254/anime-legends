@@ -53,6 +53,7 @@ class Engine {
     this.keyboardInput.reset();
     this.touchInput.reset();
     if (this.p1) {
+      this.p1.combatState.guardFrames = 0;
       this.p1.ultCharge = 0;
       this.p1.isBlocking = false;
     }
@@ -211,6 +212,7 @@ class Engine {
   handleInput(dt) {
     const f = this.p1;
     const input = this.keyboardInput;
+    const guardPress = input.consumePress("KeyC");
     const released = input.consumeRelease("KeyV");
     const held = input.isPressed("KeyV");
     if (!held) f.ultCharge = 0;
@@ -218,7 +220,12 @@ class Engine {
       if (released) this.ultimateCast = false;
       return;
     }
-    f.isBlocking = input.isPressed("KeyC");
+    if (guardPress) f.combatState.pressGuard();
+    if (f.combatState.counterFrames > 0 && input.consumePress("KeyZ")) {
+      this.attack(f, this.cpu, "attack_light");
+      return;
+    }
+    f.isBlocking = input.isPressed("KeyC") || f.combatState.guardFrames > 0;
     if (f.isBlocking) {
       f.setState("block");
       f.vx *= 0.8;
@@ -263,7 +270,8 @@ class Engine {
   }
 
   attack(f, target, type) {
-    if (f.cooldowns.attack > 0 || f.cooldowns.hurt > 0 || !f.combatState.canAct) return;
+    const counterReady = type === "attack_light" && f.combatState.counterFrames > 0;
+    if ((f.cooldowns.attack > 0 && !counterReady) || f.cooldowns.hurt > 0 || !f.combatState.canAct) return;
     if (!f.combatState.beginAttack(type)) return;
     this.playSound("swing");
     f.isBlocking = false;
@@ -271,7 +279,11 @@ class Engine {
     f.strikeResolved = false;
     const move = f.combatState.activeMove;
     f.cooldowns.actionLock = FRAME * (move.startupFrames + move.activeFrames + move.recoveryFrames);
-    if (f.weapon?.id === "blade" && type === "attack_heavy") {
+    if (f.combatState.counterStrike) {
+      // Close the small reach gap after parrying a heavy, including against a katana.
+      f.dir = target.x >= f.x ? 1 : -1;
+      f.vx = f.dir * Math.min(48, Math.max(0, Math.abs(target.x - f.x) - 78) / 2);
+    } else if (f.weapon?.id === "blade" && type === "attack_heavy") {
       f.dir = target.x > f.x ? 1 : -1;
       f.x = Math.max(50, Math.min(this.arenaWidth - 50, target.x - f.dir * 75));
       f.weapon.hits--;
@@ -290,8 +302,21 @@ class Engine {
     const result = resolveCollision(f, target, f.combatState.moveId, this);
     if (result === "whiff") return;
     f.strikeResolved = true;
-    f.power = Math.min(f.maxPower, f.power + 0.4);
-    const kind = result === "blocked" ? "guard" : f.combatState.moveId === "attack_heavy" ? "heavy" : "light";
+    let kind;
+    if (result === "perfect") {
+      target.perfectGuards++;
+      // A counter needs a new light input after the guard has connected.
+      this.keyboardInput.consumePress("KeyZ");
+      this.playSound("block");
+      kind = "perfect";
+    } else {
+      f.power = Math.min(f.maxPower, f.power + 0.4);
+      if (result === "blocked") kind = "guard";
+      else if (f.combatState.counterStrike) {
+        f.countersLanded++;
+        kind = "counter";
+      } else kind = f.combatState.moveId === "attack_heavy" ? "heavy" : "light";
+    }
     const contactY = Math.max(target.y + 35, Math.min(target.y + 130, f.y + 100));
     this.particleSystem.contact(target.x - f.dir * 23, contactY, f.dir, kind);
     f.render();

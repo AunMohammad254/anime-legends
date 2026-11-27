@@ -32,6 +32,8 @@ export class Character {
     this.cooldowns = { attack: 0, dash: 0, special: 0, hurt: 0, ult: 0, actionLock: 0 };
     this.combo = 0;
     this.bestCombo = 0;
+    this.perfectGuards = 0;
+    this.countersLanded = 0;
     this.comboTimer = 0;
     this.isBlocking = false;
     this.dashActive = 0;

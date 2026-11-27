@@ -6,6 +6,11 @@
 import { FighterState, AttackLevel, MOVE_DATA } from "./MoveRegistry.js";
 import { InputBuffer } from "./ComboDetector.js";
 
+export const GUARD_TIMING = Object.freeze({ windowFrames: 6, rearmFrames: 30, counterFrames: 27 });
+const COUNTER_LIGHT = { ...MOVE_DATA.attack_light, startupFrames: 2 };
+const CPU_HEAVY = { ...MOVE_DATA.attack_heavy, startupFrames: 18 };
+
+
 /**
  * class CombatState
  * Frame-data driven state machine for a single fighter.
@@ -24,6 +29,10 @@ export class CombatState {
     /** Current move being executed (from MOVE_DATA) */
     this.activeMove = null;
     this.extraReach = 0;
+    this.guardFrames = 0;
+    this.guardRearm = 0;
+    this.counterFrames = 0;
+    this.counterStrike = false;
 
     /** Frame counters (in 60fps frames) */
     this.framesLeft = 0;
@@ -40,6 +49,12 @@ export class CombatState {
 
     /** Crouching flag — set externally when down is held */
     this.isCrouching = false;
+  }
+
+  pressGuard() {
+    // Every tap restarts the lockout, so mashing cannot refresh the perfect window.
+    if (this.guardRearm === 0) this.guardFrames = GUARD_TIMING.windowFrames;
+    this.guardRearm = GUARD_TIMING.rearmFrames;
   }
 
   // ── State Transitions ─────────────────────────────────────────────────────
@@ -70,9 +85,14 @@ export class CombatState {
 
     // The last katana charge is consumed at startup. Its reach belongs to this swing.
     this.extraReach = this.fighter.weapon?.id === "katana" ? 45 : 0;
+    this.counterStrike = this.counterFrames > 0 && moveId === "attack_light";
+    this.counterFrames = 0;
+    this.guardFrames = 0;
     this.moveId = moveId;
     this.activeMove = move;
-    this._transition(FighterState.STARTUP, move.startupFrames);
+    if (this.counterStrike) this.activeMove = COUNTER_LIGHT;
+    else if (moveId === "attack_heavy" && !this.fighter.isPlayer) this.activeMove = CPU_HEAVY;
+    this._transition(FighterState.STARTUP, this.activeMove.startupFrames);
     return true;
   }
 
@@ -133,6 +153,10 @@ export class CombatState {
       return;
     }
 
+    this.guardFrames = Math.max(0, this.guardFrames - 1);
+    this.guardRearm = Math.max(0, this.guardRearm - 1);
+    this.counterFrames = Math.max(0, this.counterFrames - 1);
+
     // Advance the InputBuffer regardless of state
     this.inputBuffer.tick();
 
@@ -143,6 +167,13 @@ export class CombatState {
     if (this.framesLeft === 0) {
       this._onFrameExpiry();
     }
+  }
+
+  staggerOnGuard() {
+    this.activeMove = null;
+    this.inputBuffer.clear();
+    this._transition(FighterState.HITSTUN, GUARD_TIMING.counterFrames);
+    this.fighter.cooldowns.hurt = GUARD_TIMING.counterFrames * (1000 / 60);
   }
 
   /** Apply hitstop to this fighter. */
@@ -263,7 +294,7 @@ export class CombatState {
  * @param {object} defender  - The Fighter instance receiving it
  * @param {string} moveId    - Key into MOVE_DATA (e.g. 'attack_light')
  * @param {object} engine    - The Engine instance (for shake/particles)
- * @returns {'hit'|'blocked'|'juggled'|'launched'|'whiff'} result string
+ * @returns {'hit'|'blocked'|'perfect'|'juggled'|'launched'|'whiff'} result string
  */
 export function resolveCollision(attacker, defender, moveId, engine) {
   const move = MOVE_DATA[moveId];
@@ -288,6 +319,15 @@ export function resolveCollision(attacker, defender, moveId, engine) {
   }
 
   // ── Determine hit result ──────────────────────────────────────────────────
+  if (moveId === "attack_heavy" && defender.isBlocking && dcs?.guardFrames > 0 && acs) {
+    dcs.guardFrames = 0;
+    dcs.counterFrames = GUARD_TIMING.counterFrames;
+    acs.staggerOnGuard();
+    acs.applyHitstop(4);
+    dcs.applyHitstop(4);
+    return "perfect";
+  }
+
   const isAirborne = defender.y > 10; // defender is off the ground
   const result = dcs
     ? dcs.applyHit(move, defender.isBlocking, isAirborne)
@@ -297,6 +337,7 @@ export function resolveCollision(attacker, defender, moveId, engine) {
 
   // ── Calculate final damage ────────────────────────────────────────────────
   let dmg = move.damage * (1 + ((attacker.data?.atk ?? 7) - 7) * 0.05);
+  if (acs?.counterStrike) dmg *= 1.75;
   if (result === "juggled") {
     // Juggle gravity scaling reduces damage on successive air hits
     const scale = 1 / dcs.juggleGravity;

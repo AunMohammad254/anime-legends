@@ -8,6 +8,7 @@
     <title>Play Anime Legends</title>
     <link rel="icon" type="image/png" href="./media/arena-icon.png" />
     <link rel="stylesheet" href="./index.css" />
+    <link rel="stylesheet" href="./src/ui/cloud-save.css" />
   </head>
   <body>
     <main id="game-wrapper">
@@ -24,6 +25,7 @@
               <button class="btn secondary" onclick="showModal('how-to-play')">How to play</button>
             </div>
             <div class="display-actions">
+              <button class="text-button" id="open-cloud-save" aria-haspopup="dialog" aria-controls="cloud-save">Cloud save</button>
               <button class="text-button audio-toggle" aria-pressed="true" onclick="toggleAudio()">Sound on</button>
               <button class="text-button" id="fullscreen-btn" onclick="toggleFullscreen()">Fullscreen</button>
               <a class="text-button" href="./index.html">Home</a>
@@ -117,6 +119,7 @@
         <div class="match-messages">
           <div id="round-text" aria-hidden="true"></div>
           <div id="combo-counter" aria-hidden="true"></div>
+          <div id="guard-cue" role="status" aria-live="polite" aria-atomic="true"></div>
         </div>
         <div class="arena-viewport">
           <div class="arena-world">
@@ -168,6 +171,10 @@
         <dialog id="pause-modal" class="game-dialog" aria-labelledby="pause-heading">
           <div class="dialog-content">
             <h2 id="pause-heading">Paused</h2>
+            <details class="guard-help">
+              <summary>Perfect Guard timing</summary>
+              <p>Watch for the glow around their fist as they wind up a heavy punch. Press <kbd>C</kbd> or touch <b>Block</b> in the last 0.1 seconds before impact. When your guard flashes, press <kbd>Z</kbd> or tap <b>Light</b> within 0.45 seconds. You can keep holding Block.</p>
+            </details>
             <div class="menu-btns">
               <button class="btn" onclick="togglePause()">Resume</button>
               <button class="btn secondary" id="end-unlimited-btn" hidden onclick="endUnlimitedMode()">Finish survival</button>
@@ -187,8 +194,11 @@
             <dl class="result-combos">
               <div><dt>Longest combo</dt><dd id="match-combo"></dd></div>
               <div><dt>Personal best</dt><dd id="personal-combo"></dd></div>
+              <div><dt>Perfect guards</dt><dd id="perfect-guards"></dd></div>
+              <div><dt>Counters landed</dt><dd id="counters-landed"></dd></div>
             </dl>
           </div>
+          <p id="rematch-insight"></p>
           <div class="menu-btns">
             <button class="btn" onclick="preBattleCutscene()">Rematch</button>
             <button class="btn secondary" onclick="showScreen('character-select')">Choose fighter</button>
@@ -208,6 +218,51 @@
         </div>
       </div>
 
+      <dialog class="game-dialog cloud-save" id="cloud-save" aria-labelledby="cloud-title" aria-describedby="cloud-intro">
+        <div class="dialog-content">
+          <div class="cloud-header">
+            <h2 id="cloud-title">Cloud save</h2>
+            <form method="dialog"><button class="text-button" aria-label="Close">Close</button></form>
+          </div>
+          <p id="cloud-intro">Back up your fighters, scores, and Spirit Shards. Keep the recovery code outside this browser to restore on another device or after clearing site data.</p>
+          <p id="cloud-status" role="status" tabindex="-1"></p>
+          <div id="cloud-controls">
+            <button type="button" class="btn" id="cloud-create">Create cloud backup</button>
+            <section id="cloud-linked" hidden>
+              <label for="cloud-code">Your recovery code</label>
+              <input id="cloud-code" type="password" readonly autocomplete="off" spellcheck="false" aria-describedby="cloud-code-hint" />
+              <p id="cloud-code-hint">Store this code in a password manager. Anyone with it can access your backup.</p>
+              <div class="cloud-actions">
+                <button type="button" class="text-button" id="cloud-reveal" aria-pressed="false">Show code</button>
+                <button type="button" class="text-button" id="cloud-copy">Copy code</button>
+              </div>
+              <div class="cloud-actions">
+                <button type="button" class="text-button" id="cloud-sync">Sync now</button>
+                <button type="button" class="text-button" id="cloud-disconnect">Disconnect device</button>
+              </div>
+            </section>
+            <div id="cloud-conflict" class="cloud-actions" hidden>
+              <button type="button" class="btn" id="cloud-use-remote">Use cloud progress</button>
+              <button type="button" class="btn secondary" id="cloud-fork">Keep this device separately</button>
+            </div>
+            <form id="cloud-restore-form">
+              <label for="cloud-restore-code">Enter a recovery code</label>
+              <input id="cloud-restore-code" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" required />
+              <button class="btn secondary" type="submit">Review restore</button>
+            </form>
+          </div>
+          <section id="cloud-review" hidden aria-labelledby="cloud-review-title">
+            <h3 id="cloud-review-title" tabindex="-1"></h3>
+            <p id="cloud-review-detail"></p>
+            <div class="cloud-actions">
+              <button type="button" class="btn" id="cloud-confirm"></button>
+              <button type="button" class="btn secondary" id="cloud-cancel">Cancel</button>
+            </div>
+          </section>
+          <p id="cloud-notice" role="status"></p>
+        </div>
+      </dialog>
+
       <dialog id="modal-how-to-play" class="game-dialog" aria-labelledby="help-heading">
         <div class="dialog-content">
           <h2 id="help-heading">How to play</h2>
@@ -221,6 +276,10 @@
             <dt>Ultimate · 3 orbs</dt><dd>Hold V</dd>
             <dt>Pause</dt><dd>Esc</dd>
           </dl>
+          <div class="guard-help">
+            <h3>Perfect Guard</h3>
+            <p>When the opponent winds up a heavy punch, their fist glows. Start blocking in the last 0.1 seconds before it lands to prevent damage and stagger them. You have 0.45 seconds to counter with Light. Use <kbd>C</kbd> then <kbd>Z</kbd>, or touch <b>Block</b> then <b>Light</b>.</p>
+          </div>
           <p>On touchscreens, drag the stick up to jump. Tap or hold Power for your special or ultimate.</p>
           <button class="btn" onclick="closeModal()">Close</button>
         </div>

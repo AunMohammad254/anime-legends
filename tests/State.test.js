@@ -196,6 +196,27 @@ describe("State", () => {
     expect(restored.data.activeBoosts).toEqual(["hp_up"]);
   });
 
+  it("restores and persists a full backup without queuing it as another gameplay change", () => {
+    const loaded = vi.fn();
+    const saved = vi.fn();
+    state.on("progressLoaded", loaded);
+    state.on("progressSaved", saved);
+    state.addShards(60);
+    const oldSave = localStorage.getItem(state.storageKey);
+    const restored = { ...state.data, spiritShards: 150, bestCombo: 5 };
+    expect(state.replaceProgress({})).toBe(false);
+    const write = vi.spyOn(Storage.prototype, "setItem").mockImplementationOnce(() => { throw new Error("Storage full"); });
+    expect(state.replaceProgress(restored)).toBe(false);
+    expect(state.spiritShards).toBe(60);
+    expect(localStorage.getItem(state.storageKey)).toBe(oldSave);
+    expect(loaded).not.toHaveBeenCalled();
+    expect(state.replaceProgress(restored)).toBe(true);
+    expect(write).toHaveBeenCalledTimes(2);
+    expect(saved).toHaveBeenCalledTimes(1);
+    expect(loaded).toHaveBeenCalledWith(restored);
+    expect(new GameState().data).toEqual(restored);
+  });
+
   it("records shards and ranked results together and keeps the ten highest scores", () => {
     const write = vi.spyOn(Storage.prototype, "setItem");
     for (let i = 0; i <= 10; i++) {

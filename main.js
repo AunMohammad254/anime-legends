@@ -1,5 +1,7 @@
 import { CHARACTERS } from "./constants.js";
 import { state } from "./state.js";
+import { CloudSave } from "./src/cloud/CloudSave.js";
+import { bindCloudSaveDialog } from "./src/ui/CloudSaveDialog.js";
 import { ui } from "./ui.js";
 import { engine } from "./engine.js";
 
@@ -12,6 +14,9 @@ function startGameApp() {
 
   engine.init();
   ui.init();
+  const cloudSave = new CloudSave(state);
+  bindCloudSaveDialog(cloudSave);
+  cloudSave.start();
 
   if (import.meta.env.DEV) {
     window.gameDebug = {

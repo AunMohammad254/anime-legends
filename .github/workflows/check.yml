@@ -57,6 +57,20 @@ jobs:
     needs: test-and-build
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: game_test
+          POSTGRES_PASSWORD: ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d game_test"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      DATABASE_URL: postgresql://postgres:ci-only@127.0.0.1:5432/game_test
+      TEST_DATABASE_URL: postgresql://postgres:ci-only@127.0.0.1:5432/game_test
     strategy:
       fail-fast: false
       matrix:
@@ -74,6 +88,9 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - run: npm run db:init
+      - if: matrix.engine == 'chromium'
+        run: npm run test:database
       - uses: actions/download-artifact@v8
         with:
           name: browser-test-build

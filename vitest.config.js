@@ -8,7 +8,8 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       thresholds: { 100: true, perFile: true },
-      include: ["src/**/*.js", "engine.js", "constants.js", "landing.js", "main.js", "state.js", "ui.js"],
+      include: ["src/**/*.js", "server/**/*.js", "api/**/*.js", "netlify/functions/**/*.js",
+        "engine.js", "constants.js", "landing.js", "main.js", "state.js", "ui.js"],
       reporter: ["text", "html", "lcov", "json-summary"],
     },
   },

@@ -1,0 +1,32 @@
+.cloud-save { width: min(460px, 94vw); overscroll-behavior: contain; }
+.cloud-save [hidden] { display: none !important; }
+.cloud-header, .cloud-actions { display: flex; align-items: center; gap: .55rem; flex-wrap: wrap; }
+.cloud-header { justify-content: space-between; }
+.cloud-save :is(#cloud-controls, #cloud-linked, #cloud-restore-form, #cloud-review) {
+  display: grid;
+  gap: .65rem;
+  min-width: 0;
+}
+.cloud-save #cloud-restore-form, .cloud-save #cloud-conflict {
+  margin-top: .35rem;
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
+.cloud-save label { font-weight: 700; }
+.cloud-save input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  color: var(--cream);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: .55rem .65rem;
+  font: 1rem/1.4 ui-monospace, monospace;
+  user-select: text;
+}
+.cloud-save input:focus-visible { outline: 2px solid var(--cyan); }
+.cloud-save #cloud-status { color: var(--cyan); }
+.cloud-save #cloud-notice:empty { display: none; }
+.cloud-save button { min-height: 44px; }
+.cloud-save button:disabled { cursor: wait; opacity: .65; }
