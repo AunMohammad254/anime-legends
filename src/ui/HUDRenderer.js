@@ -1,3 +1,12 @@
+import { FighterState } from "../combat/MoveRegistry.js";
+
+const GUARD_CUES = {
+  idle: "",
+  windup: "Heavy windup · Time your block",
+  opening: "Perfect guard! Counter with Light (Z)",
+  hit: "Counter hit!",
+};
+
 function setText(id, text) {
   const el = document.getElementById(id);
   if (el && el.textContent !== text) el.textContent = text;
@@ -11,6 +20,31 @@ export class HUDRenderer {
     setText("game-timer", unlimited ? "∞" : String(Math.max(0, Math.ceil(timer))));
     document.getElementById("game-timer")?.classList.toggle("low", !unlimited && timer < 10);
     setText("round-label", phase);
+    this.updateGuard(p1, cpu);
+  }
+
+  updateGuard(player, opponent) {
+    // A new fighter starts a fresh match, including a restart from the pause menu.
+    if (this.guardFighter !== player) {
+      this.guardFighter = player;
+      this.lastCounters = 0;
+      this.counterHitUntil = 0;
+    }
+    const now = performance.now();
+    if (player.countersLanded > this.lastCounters) {
+      this.lastCounters = player.countersLanded;
+      this.counterHitUntil = now + 800;
+    }
+    let cue = "idle";
+    if (player.hp > 0 && opponent.hp > 0) {
+      if (player.combatState?.counterFrames > 0) cue = "opening";
+      else if (opponent.combatState?.state === FighterState.STARTUP && opponent.combatState.moveId === "attack_heavy") cue = "windup";
+      else if (now < this.counterHitUntil) cue = "hit";
+    }
+    const screen = document.getElementById("screen-battle");
+    if (screen.dataset.guardCue === cue) return;
+    screen.dataset.guardCue = cue;
+    setText("guard-cue", GUARD_CUES[cue]);
   }
 
   updateFighter(id, fighter) {

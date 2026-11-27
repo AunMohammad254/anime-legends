@@ -129,7 +129,13 @@ h1, h2, .result-title, .matchup strong, .matchup em, #round-text, #combo-counter
 .result-score { display: grid; margin: 1.25rem 0; }
 #final-score { font-size: 1.5rem; }
 #shards-earned { color: var(--cyan); }
-.result-combos { display: grid; grid-template-columns: 1fr 1fr; margin-top: .85rem; padding-top: .75rem; border-top: 1px solid var(--border); }
+.result-combos { display: grid; grid-template-columns: 1fr 1fr; row-gap: .65rem; margin-top: .85rem; padding-top: .75rem; border-top: 1px solid var(--border); }
+#rematch-insight { margin: -.35rem 0 1.05rem; color: var(--muted); line-height: 1.45; font-size: .88rem; }
+.guard-help { padding: .7rem .85rem; border-left: 3px solid var(--cyan); background: #102430; }
+.guard-help summary, .guard-help h3 { color: var(--cream); font-size: .95rem; font-weight: 750; }
+.guard-help summary { cursor: pointer; }
+.guard-help p { margin: .45rem 0 0; }
+.guard-help kbd { color: var(--cream); font-weight: 700; }
 .result-combos dt { color: var(--muted); font-size: .8rem; }
 .result-combos dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
 .scores-shell { max-width: 760px; }
@@ -201,6 +207,17 @@ h1, h2, .result-title, .matchup strong, .matchup em, #round-text, #combo-counter
 .cpu-hud { text-align: right; }
 #vfx-layer { z-index: 70; width: 100%; height: 100%; }
 #round-text { position: absolute; top: 29%; width: 100%; text-align: center; font-size: clamp(2.8rem, 9vw, 7rem); z-index: 120; color: var(--cream); text-shadow: 0 4px 0 #122030; pointer-events: none; transition: opacity .16s; }
+#guard-cue {
+  position: absolute; top: max(6.8rem, 18%); left: 50%; transform: translateX(-50%);
+  width: max-content; max-width: 100%; padding: .35rem .8rem;
+  background: #0e2533; color: #ffcf91; border-bottom: 2px solid currentColor;
+  font-weight: 800; text-align: center; line-height: 1.1;
+}
+#guard-cue:empty { display: none; }
+#screen-battle[data-guard-cue="opening"] #guard-cue { color: var(--cyan); }
+#screen-battle[data-guard-cue="opening"] .touch-btn[data-key="KeyZ"] { color: #09212a; background: #a1f0e8; border-color: #e6fffa; }
+#screen-battle[data-guard-cue="windup"] .touch-btn[data-key="KeyC"] { border-color: #ffbc82; }
+.match-messages:has(#guard-cue:not(:empty)) #combo-counter { visibility: hidden; }
 /* EFFECTS & WEAPONS */
 .aura {
   position: absolute;
@@ -726,6 +743,10 @@ h1, h2, .result-title, .matchup strong, .matchup em, #round-text, #combo-counter
   text-shadow: none;
 }
 #screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) #round-text { color: #ffab72; }
+#screen-battle:is(.portrait-mode, :has(> #touch-controls.active)) #guard-cue {
+  inset: 0; width: 100%; transform: none; padding: 0 .25rem; border: none;
+  font-size: .8rem; line-height: 1.1rem; background: #102734; z-index: 130;
+}
 #touch-controls.active, #screen-battle.portrait-mode #touch-controls-portrait {
   grid-area: deck;
   display: flex;

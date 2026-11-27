@@ -609,3 +609,129 @@ describe("melee contact feedback", () => {
     expect(engine.p1.y).toBe(0);
   });
 });
+
+describe("perfect guard and counter", () => {
+  function incoming(type = "attack_heavy", beforeImpact = 2) {
+    engine.attack(engine.cpu, engine.p1, type);
+    step(engine.cpu.combatState.activeMove.startupFrames - beforeImpact);
+  }
+
+  function keyboard(key, down) {
+    window.dispatchEvent(new KeyboardEvent(down ? "keydown" : "keyup", { code: key, bubbles: true, cancelable: true }));
+  }
+
+  function pointer(button, down, id) {
+    const event = new MouseEvent(down ? "pointerdown" : "pointerup", { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "pointerId", { value: id });
+    button.dispatchEvent(event);
+  }
+
+  it.each(["keyboard", "touch"])("counters a CPU heavy after a fresh %s guard", control => {
+    start(opponent);
+    const { p1, cpu } = engine;
+    const impact = document.querySelector(".melee-impact");
+    const touch = control === "touch";
+    const action = (key, down) => {
+      if (!touch) return keyboard(key, down);
+      pointer(document.querySelector(`[data-key="${key}"]`), down, key === "KeyC" ? 1 : 2);
+    };
+    if (touch) {
+      engine.touchInput.destroy();
+      document.body.insertAdjacentHTML("beforeend", '<button class="touch-btn" data-key="KeyC">Block</button><button class="touch-btn" data-key="KeyZ">Light</button>');
+      engine.touchInput.init();
+    }
+
+    incoming();
+    action("KeyC", true);
+    if (touch) action("KeyC", false); // A quick lift before the next simulation step still counts.
+    step(2);
+    expect(p1.hp).toBe(100);
+    expect(cpu.power).toBe(0);
+    expect(p1.perfectGuards).toBe(1);
+    expect(p1.combatState.counterFrames).toBe(27);
+    expect(impact.dataset.kind).toBe("perfect");
+    expect(cpu.combatState.canAct).toBe(false);
+    // A remaining ability cooldown may outlast its action lock; the counter still works.
+    p1.cooldowns.attack = 350;
+    action("KeyZ", true);
+    action("KeyZ", false);
+    step(9);
+    expect(p1.combatState.counterFrames).toBe(0);
+    expect(p1.countersLanded).toBe(1);
+    expect(impact.dataset.kind).toBe("counter");
+    expect(cpu.hp).toBeCloseTo(100 - 8 * 1.75 * 1.035);
+    expect(p1.bestCombo).toBe(1);
+    step(30);
+    expect(p1.countersLanded).toBe(1);
+  });
+
+  it("handles a counter facing left at the far edge of a katana heavy", () => {
+    start(opponent);
+    engine.p1.x = 600;
+    engine.cpu.x = 380;
+    engine.cpu.dir = 1;
+    engine.cpu.weapon = { ...WEAPONS.find(w => w.id === "katana") };
+    engine.p1.weapon = { ...WEAPONS.find(w => w.id === "bow") };
+    incoming();
+    tap("KeyC");
+    step(2);
+    expect(engine.p1.perfectGuards).toBe(1);
+    tap("KeyZ");
+    step(10);
+    expect(engine.p1.dir).toBe(-1);
+    expect(engine.p1.countersLanded).toBe(1);
+    expect(engine.projectiles).toHaveLength(0);
+    expect(engine.p1.weapon.hits).toBe(5);
+  });
+
+  it.each(["held early", "mashed", "light attack"])("keeps the ordinary guard against an attack when %s", mode => {
+    start(opponent);
+    if (mode === "light attack") {
+      incoming("attack_light");
+      keyboard("KeyC", true);
+      step(2);
+    } else {
+      engine.attack(engine.cpu, engine.p1, "attack_heavy");
+      keyboard("KeyC", true);
+      step(5);
+      if (mode === "mashed") {
+        keyboard("KeyC", false);
+        keyboard("KeyC", true);
+        step(5);
+        keyboard("KeyC", false);
+        keyboard("KeyC", true);
+      }
+      step(13);
+    }
+    expect(engine.p1.hp).toBeLessThan(100);
+    expect(engine.p1.hp).toBeGreaterThan(90);
+    expect(engine.p1.perfectGuards).toBe(0);
+    expect(document.querySelector(".melee-impact").dataset.kind).toBe("guard");
+  });
+
+  it("drops pre-guard light taps and closes an unused opening; another guard can be earned after rearming", () => {
+    start(opponent);
+    incoming();
+    tap("KeyZ");
+    keyboard("KeyC", true);
+    step(2);
+    expect(engine.p1.perfectGuards).toBe(1);
+    keyboard("KeyC", false);
+    step(50);
+    expect(engine.p1.combatState.counterFrames).toBe(0);
+    expect(engine.p1.countersLanded).toBe(0);
+    expect(engine.cpu.hp).toBe(100);
+    incoming();
+    keyboard("KeyC", true);
+    step(2);
+    expect(engine.p1.perfectGuards).toBe(2);
+    engine.togglePause();
+    engine.battleLoop(6000);
+    expect(engine.p1.combatState.counterFrames).toBe(27);
+    engine.togglePause();
+    start(opponent);
+    expect(engine.p1.perfectGuards).toBe(0);
+    expect(engine.p1.countersLanded).toBe(0);
+    expect(engine.p1.combatState.counterFrames).toBe(0);
+  });
+});

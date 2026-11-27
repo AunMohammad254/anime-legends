@@ -173,3 +173,10 @@
 @media (prefers-reduced-motion: reduce) {
   .fighter[data-strike-phase] .s-arm-r .s-forearm::before { display: none; }
 }
+
+/* A steady outline and gold fist telegraph the CPU's heavy before the active frames. */
+#cpu-sprite.attack_heavy[data-strike-phase="STARTUP"] .s-arm-r .s-forearm::after {
+  background: #ffe4a1;
+  outline: 2px solid #fff4d7;
+  box-shadow: 0 0 9px 3px #efa136;
+}

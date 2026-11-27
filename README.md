@@ -10,6 +10,8 @@ Choose **Enter the arena**, then **Choose fighter**. Pick a difficulty and match
 
 Land another unblocked punch within 1.5 seconds of combat time to keep your combo going. The results screen shows your longest combo from the match alongside your personal best on this device.
 
+A gold fist signals an incoming heavy punch. Start blocking in the final 0.1 seconds before contact for a **Perfect Guard**. Press **Light** within the next 0.45 seconds to throw a faster, stronger counter. You can keep holding Block. The results screen shows how many openings you turned into hits.
+
 | Mode | How it plays |
 | --- | --- |
 | Timed match | Choose 100, 200, 300, or 400 HP. Win by knockout or by finishing the round with a higher percentage of health remaining. Equal health at the bell is a draw. |
@@ -48,7 +50,11 @@ Land another unblocked punch within 1.5 seconds of combat time to keep your comb
 
 A completed match earns one Spirit Shard for every 100 points. Spend shards in the **Spirit shop** on fighters, weapon skins, and boosts. Once purchased, a boost can be equipped again for free. You can equip two at a time.
 
-Your browser saves your shards, purchases, equipped items, and ten highest scores in local storage for the site. Return using the same browser profile and site address to keep playing with your unlocks. Clearing the site's stored data clears your progress. When storage is unavailable, you can play and earn rewards for the current session.
+The game saves progress in your browser. On a cloud-enabled deployment, open **Cloud save** from the main menu and choose **Create cloud backup**. Wait for **Your cloud backup is up to date**, then copy the private recovery code into a password manager. The backup includes shards, fighters, owned and equipped boosts and skins, best combo, and the top ten scores.
+
+To recover after clearing browser data or changing devices, open the same game service, enter the code, choose **Review restore**, and confirm **Replace device progress**. Anyone with the code can read and update that backup. A lost code can still be copied from a linked device.
+
+You can play offline. A linked device retries after reconnecting or reopening the game. **Sync now** retries immediately. If two devices changed independently, you can restore the cloud copy or keep the local progress under a separate code.
 
 ## Run locally
 
@@ -63,6 +69,12 @@ npm run dev
 
 Open the local URL printed by Vite. The root path opens the landing page and `/game.html` opens the game. To test the touch controls on a phone over your local network, run `npm run dev -- --host` and open Vite's network URL on the phone.
 
+### Connect a save database
+
+Create a PostgreSQL database and set the server environment variable `DATABASE_URL` to its private connection URL. Use the same database role for initialization and the running function. Run `npm run db:init` once with that variable set. The command is safe to rerun. Both `npm run dev` and `npm run preview` serve the backup API when started with that environment.
+
+The API stores a SHA-256 digest of each random 256-bit recovery code and a revision for its save. Conditional writes prevent a stale device from replacing newer progress. The server role owns the table. Other roles subject to row-level security have no policy granting access. For database-level disaster recovery, configure snapshots or point-in-time recovery with your PostgreSQL provider. [Database schema](database/schema.sql)
+
 ## Verify a release
 
 From a clean checkout, run these commands from the repository root.
@@ -76,22 +88,17 @@ npx playwright install chromium firefox webkit
 npm run test:browser
 ```
 
-The browser suite starts Vite's preview server on port 4173 and exercises the built game in desktop Chromium and Firefox, plus touch-emulated Chromium and WebKit. On a fresh Linux runner, use `npx playwright install --with-deps chromium firefox webkit` to install the browsers' system libraries too. For a manual playthrough, run `npm run preview` after the build.
+The browser suite starts Vite's preview server on port 4173 and exercises the built game in desktop Chromium and Firefox, plus touch-emulated Chromium and WebKit. To run the database checks locally, point `TEST_DATABASE_URL` at a disposable PostgreSQL database, initialize it with `DATABASE_URL="$TEST_DATABASE_URL" npm run db:init`, then run `npm run test:database` and `npm run test:browser`. The cross-device restore test runs when `TEST_DATABASE_URL` is set. On a fresh Linux runner, use `npx playwright install --with-deps chromium firefox webkit` to install the browsers' system libraries too.
 
-GitHub Actions runs the unit suite and builds the game on Linux and Windows. Both runners check that each built page, its links, and its local assets resolve under a deployment subdirectory. The browser jobs use the same Linux build for keyboard and touch playthroughs, a timed knockout, pausing and restarting, shopping, cross-tab saves, blocked storage, and menu navigation.
+GitHub Actions runs the unit suite and builds the game on Linux and Windows. Each browser job gets its own PostgreSQL 17 service. Tests cover competing database writes, cross-device recovery, failed restores, shopping, combat, and keyboard and touch controls against the built game.
 
 The Linux unit suite requires 100% line, statement, branch, and function coverage for each measured application JavaScript file. Open **unit-coverage** on the workflow run to inspect the V8 report. A failed browser job provides a **browser-failures** artifact for its engine with an HTML report, traces, and screenshots. Once all jobs pass, **anime-legends-dist** contains the build that the browsers tested. Checks run on pull requests, pushes to `main`, and manual runs. [Release checks](.github/workflows/check.yml)
 
-## Deploy to Netlify
+## Deploy to Vercel or Netlify
 
-The production build is a static site. It includes the landing page, the game, and their assets. The game runs entirely in the player's browser.
-
-1. In Netlify, open the existing Anime Legends project. For a first deployment, import the GitHub repository into a new project.
-2. Set the production branch to `main` and the base directory to the repository root. The repository config sets the build command to `npm run build` and the publish directory to `dist`. Use Node.js 24.15 or a later 24.x release for the build.
-3. Put the tested release on the production branch. Run or approve the production deploy in Netlify according to your project's publishing settings.
-4. Open the deployed home page in a fresh browser session. Choose **Enter the arena**, complete a fight, then reload and check the leaderboard. Use the deployed project's HTTPS URL to share the game.
-
-If you deploy manually, upload the contents of the verified `dist/` build, including both HTML files and the assets directory. [Netlify build configuration](netlify.toml)
+1. Deploy this repository with Node.js 24.15 or a later 24.x release, build command `npm run build`, and output directory `dist`. Vercel discovers the function in `api/`. Netlify uses the function and rewrite in the repository configuration. Both serve `/api/progress`. [Vercel function](api/progress.js) · [Netlify configuration](netlify.toml)
+2. Initialize the production database as described above. Put `DATABASE_URL` in the host's private **function runtime** environment and redeploy. Keep production credentials server-side. Use a separate database for preview deployments.
+3. Open the deployed HTTPS game, create a backup, and restore it in a second browser profile. A static deployment of `dist/` supports local play. Cloud saves require the function and database.
 
 ## Project structure
 

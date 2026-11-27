@@ -34,3 +34,19 @@
 @media (prefers-reduced-motion: reduce) {
   #arena #vfx-layer, #arena .trail-ghost { display: none; }
 }
+
+#arena .melee-impact[data-kind="perfect"] {
+  width: 45px;
+  height: 51px;
+  clip-path: polygon(50% 0, 98% 17%, 87% 67%, 50% 100%, 13% 67%, 2% 17%);
+  background: #fff0ad;
+}
+#arena .melee-impact[data-kind="perfect"]::after {
+  inset: 5px 6px 7px;
+  background: #167b83;
+}
+#arena .melee-impact[data-kind="counter"] {
+  width: 64px;
+  height: 42px;
+  background: #60ffce;
+}
