@@ -279,6 +279,32 @@ describe("Cloud save synchronization", () => {
     }
   });
 
+  it("plays offline from the last linked save after device data is lost, then backs up the new earnings", async () => {
+    game.addShards(45);
+    await cloud.enable();
+    localStorage.removeItem(game.storageKey);
+    const device = new GameState();
+    const sync = new CloudSave(device);
+    vi.spyOn(device, "replaceProgress").mockReturnValueOnce(false);
+    expect(await sync.start()).toBe(false);
+    expect(sync.view.status).toBe("storage-error");
+    fetcher.mockRejectedValue(new Error("Offline"));
+    expect(await sync.retry()).toBe(false);
+    expect(device.spiritShards).toBe(45);
+    device.addShards(5);
+    expect(await sync.retry()).toBe(false);
+    expect(rows.get(code).progress.spiritShards).toBe(45);
+    // A second interrupted session can also recover the pending offline earnings.
+    localStorage.removeItem(game.storageKey);
+    const reopened = new GameState();
+    const resumed = new CloudSave(reopened);
+    expect(await resumed.start()).toBe(false);
+    expect(reopened.spiritShards).toBe(50);
+    fetcher.mockImplementation(exchange);
+    expect(await resumed.retry()).toBe(true);
+    expect(rows.get(code).progress.spiritShards).toBe(50);
+  });
+
   it("finishes an interrupted restore across both storage keys, unless the player made a new save", async () => {
     game.addShards(12);
     await cloud.enable();

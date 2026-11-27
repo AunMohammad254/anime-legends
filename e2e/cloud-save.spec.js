@@ -57,6 +57,37 @@ test("backs up a returning player, saves a purchase, and restores it on a fresh 
   }
 });
 
+test("a linked player can recover locally during an outage and sync an offline purchase", async ({ page }) => {
+  test.skip(!process.env.TEST_DATABASE_URL, "This playthrough uses a disposable PostgreSQL database.");
+  await seedReturningPlayer(page);
+  const dialog = await openCloud(page);
+  await dialog.getByRole("button", { name: "Create cloud backup" }).click();
+  await expect(dialog.locator("#cloud-status")).toHaveText("Your cloud backup is up to date.");
+
+  await page.route("**/api/progress", route => route.abort());
+  await page.evaluate(key => localStorage.removeItem(key), saveKey);
+  await page.reload();
+  await openCloud(page);
+  await expect(dialog.locator("#cloud-status")).toContainText("unavailable");
+  await dialog.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(page.locator("#shard-count")).toHaveText("800");
+  await page.getByRole("button", { name: "Spirit shop" }).click();
+  const failed = page.waitForEvent("requestfailed", req => req.url().endsWith("/api/progress")
+    && req.postDataJSON().action === "write");
+  await page.locator("#shop-shadow").click();
+  await failed;
+  await expect(page.locator("[data-balance]")).toHaveText("300");
+
+  await page.unroute("**/api/progress");
+  const uploaded = page.waitForResponse(res => res.url().endsWith("/api/progress")
+    && res.request().postDataJSON().action === "write" && res.ok());
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  const confirmed = await (await uploaded).json();
+  expect(confirmed.revision).toBe(2);
+  expect(confirmed.progress.spiritShards).toBe(300);
+  expect(confirmed.progress.unlockedCharacters).toContain("shadow");
+});
+
 test("a cancelled or interrupted restore leaves the existing device save usable", async ({ page }) => {
   await seedReturningPlayer(page);
   const original = await page.evaluate(key => localStorage.getItem(key), saveKey);

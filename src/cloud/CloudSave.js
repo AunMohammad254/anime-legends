@@ -207,6 +207,13 @@ export class CloudSave {
       if (!this.state.replaceProgress(JSON.parse(link.base))) throw new Error("storage-error");
       this.persist(link);
     }
+    // Recover the last locally journaled progress before waiting for the network.
+    // A match played offline should start with the player's fighters and balance.
+    this.state.load();
+    const cached = this.record.pending ?? this.record.base;
+    if (this.state.needsRecovery && cached && !this.state.replaceProgress(JSON.parse(cached))) {
+      throw new Error("storage-error");
+    }
     let checkRemote = true;
     for (;;) {
       const record = this.record;
